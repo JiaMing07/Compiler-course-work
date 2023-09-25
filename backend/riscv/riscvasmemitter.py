@@ -79,7 +79,7 @@ class RiscvAsmEmitter(AsmEmitter):
         def visitUnary(self, instr: Unary) -> None:
             op = {
                 TacUnaryOp.NEG: RvUnaryOp.NEG,
-                TacUnaryOp.BitNot: RvUnaryOp.Not,
+                TacUnaryOp.BitNot: RvUnaryOp.NOT,
                 TacUnaryOp.LogicNot: RvUnaryOp.SEQZ,
                 # You can add unary operations here.
             }[instr.op]
@@ -90,12 +90,37 @@ class RiscvAsmEmitter(AsmEmitter):
             For different tac operation, you should translate it to different RiscV code
             A tac operation may need more than one RiscV instruction
             """
-            if instr.op == TacBinaryOp.LOR:
+            if instr.op == TacBinaryOp.OR:
                 self.seq.append(Riscv.Binary(RvBinaryOp.OR, instr.dst, instr.lhs, instr.rhs))
                 self.seq.append(Riscv.Unary(RvUnaryOp.SNEZ, instr.dst, instr.dst))
+            elif instr.op == TacBinaryOp.AND:
+                self.seq.append(Riscv.Unary(RvUnaryOp.SNEZ, instr.dst, instr.lhs))
+                self.seq.append(Riscv.Binary(RvBinaryOp.SUB, instr.dst, Riscv.ZERO, instr.dst))
+                self.seq.append(Riscv.Binary(RvBinaryOp.AND, instr.dst, instr.dst, instr.rhs))
+                self.seq.append(Riscv.Unary(RvUnaryOp.SNEZ, instr.dst, instr.dst))
+            elif instr.op == TacBinaryOp.EQU:
+                self.seq.append(Riscv.Binary(RvBinaryOp.SUB, instr.dst, instr.lhs, instr.rhs))
+                self.seq.append(Riscv.Unary(RvUnaryOp.SEQZ, instr.dst, instr.dst))
+            elif instr.op == TacBinaryOp.NEQ:
+                self.seq.append(Riscv.Binary(RvBinaryOp.SUB, instr.dst, instr.lhs, instr.rhs))
+                self.seq.append(Riscv.Unary(RvUnaryOp.SNEZ, instr.dst, instr.dst))
+            elif instr.op == TacBinaryOp.LEQ:
+                self.seq.append(Riscv.Binary(RvBinaryOp.SGT, instr.dst, instr.lhs, instr.rhs))
+                self.seq.append(Riscv.Unary(RvUnaryOp.SEQZ, instr.dst, instr.dst))
+            elif instr.op == TacBinaryOp.GEQ:
+                self.seq.append(Riscv.Binary(RvBinaryOp.SLT, instr.dst, instr.lhs, instr.rhs))
+                self.seq.append(Riscv.Unary(RvUnaryOp.SEQZ, instr.dst, instr.dst))
             else:
                 op = {
                     TacBinaryOp.ADD: RvBinaryOp.ADD,
+                    TacBinaryOp.SUB: RvBinaryOp.SUB,
+                    
+                    TacBinaryOp.MUL: RvBinaryOp.MUL,
+                    TacBinaryOp.DIV: RvBinaryOp.DIV,
+                    TacBinaryOp.MOD: RvBinaryOp.REM,
+                    
+                    TacBinaryOp.SGT: RvBinaryOp.SGT,
+                    TacBinaryOp.SLT: RvBinaryOp.SLT,
                     # You can add binary operations here.
                 }[instr.op]
                 self.seq.append(Riscv.Binary(op, instr.dst, instr.lhs, instr.rhs))
