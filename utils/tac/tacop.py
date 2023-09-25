@@ -20,11 +20,19 @@ class InstrKind(Enum):
 @unique
 class TacUnaryOp(Enum):
     NEG = auto()
+    BitNot = auto()
+    LogicNot = auto()
 
 # Kinds of binary operations.
 @unique
 class TacBinaryOp(Enum):
     ADD = auto()
+    Sub = auto()
+    
+    Mul = auto()
+    Div = auto()
+    Mod = auto()
+    
     LOR = auto()
 
 
