@@ -177,6 +177,7 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         if decl.init_expr is not NULL:
             decl.init_expr.accept(self, mv)
             mv.visitAssignment(decl.getattr("symbol").temp, decl.init_expr.getattr('val'))
+
         # raise NotImplementedError
 
     def visitAssignment(self, expr: Assignment, mv: TACFuncEmitter) -> None:

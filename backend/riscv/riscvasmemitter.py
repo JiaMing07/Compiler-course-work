@@ -160,6 +160,7 @@ class RiscvSubroutineEmitter(SubroutineEmitter):
 
     def emitComment(self, comment: str) -> None:
         # you can add some log here to help you debug
+        # print(comment)
         pass
     
     # store some temp to stack
