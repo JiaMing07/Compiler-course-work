@@ -24,6 +24,7 @@ class TACInstr:
         self.label = label
 
     def getRead(self) -> list[int]:
+        # print([i.index for i in self.dsts], self.srcs, self.kind)
         return [src.index for src in self.srcs]
 
     def getWritten(self) -> list[int]:

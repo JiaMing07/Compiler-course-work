@@ -132,6 +132,10 @@ class TACFuncEmitter(TACVisitor):
     # To get the label for 'continue' in the current loop.
     def getContinueLabel(self) -> Label:
         return self.continueLabelStack[-1]
+    
+    # print log
+    def print_log(self):
+        self.func.printTo()
 
 
 class TACGen(Visitor[TACFuncEmitter, None]):
@@ -273,7 +277,24 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         """
         1. Refer to the implementation of visitIf and visitBinary.
         """
-        raise NotImplementedError
+        # print(expr.cond, expr.then, expr.otherwise)
+        expr.cond.accept(self, mv)
+        skipLabel = mv.freshLabel()
+        exitLabel = mv.freshLabel()
+        value = mv.freshTemp()
+        mv.visitCondBranch(
+            tacop.CondBranchOp.BEQ, expr.cond.getattr("val"), skipLabel
+        )
+        expr.then.accept(self, mv)
+        mv.visitAssignment(value, expr.then.getattr("val"))
+        mv.visitBranch(exitLabel)
+        mv.visitLabel(skipLabel)
+        
+        expr.otherwise.accept(self, mv)
+        mv.visitAssignment(value, expr.otherwise.getattr("val"))
+        mv.visitLabel(exitLabel)
+        expr.setattr( "val", value)
+        # raise NotImplementedError
 
     def visitIntLiteral(self, expr: IntLiteral, mv: TACFuncEmitter) -> None:
         expr.setattr("val", mv.visitLoad(expr.value))
