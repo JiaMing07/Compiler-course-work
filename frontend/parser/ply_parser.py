@@ -113,7 +113,27 @@ def p_while(p):
     statement_unmatched : While LParen expression RParen statement_unmatched
     """
     p[0] = While(p[3], p[5])
+    
+def p_dowhile(p):
+    """
+    statement_matched : Do statement_matched While LParen expression RParen Semi
+    statement_unmatched : Do statement_unmatched While LParen expression RParen Semi
+    """
+    p[0] = DoWhile(p[7], p[2])
+    
+def p_for_init(p):
+    """
+    for_init : declaration
+    for_init : opt_expression
+    """
+    p[0] = p[1]
 
+def p_for(p):
+    """
+    statement_matched : For LParen for_init Semi opt_expression Semi opt_expression RParen statement_matched
+    statement_unmatched : For LParen for_init Semi opt_expression Semi opt_expression RParen statement_unmatched
+    """
+    p[0] = For(p[3], p[5], p[7], p[9])
 
 def p_return(p):
     """
@@ -141,7 +161,12 @@ def p_break(p):
     statement_matched : Break Semi
     """
     p[0] = Break()
-
+    
+def p_continue(p):
+    """
+    statement_matched : Continue Semi
+    """
+    p[0] = Continue()
 
 def p_opt_expression(p):
     """
@@ -268,3 +293,4 @@ def p_error(t):
 
 parser = yacc.yacc(start="program")
 parser.error_stack = error_stack  # type: ignore
+# print("parser", error_stack)

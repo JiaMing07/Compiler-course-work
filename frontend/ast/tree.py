@@ -170,6 +170,46 @@ class While(Statement):
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitWhile(self, ctx)
+    
+class DoWhile(Statement):
+    """
+    AST node of DoWhile statement.
+    """
+
+    def __init__(self, cond: Expression, body: Statement) -> None:
+        super().__init__("dowhile")
+        self.cond = cond
+        self.body = body
+
+    def __getitem__(self, key: int) -> Node:
+        return (self.cond, self.body)[key]
+
+    def __len__(self) -> int:
+        return 2
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitDoWhile(self, ctx)
+    
+class For(Statement):
+    """
+    AST node of for statement.
+    """
+
+    def __init__(self, init:Expression, cond: Expression, increment:Expression, body: Statement) -> None:
+        super().__init__("for")
+        self.init = init
+        self.cond = cond
+        self.body = body
+        self.incr = increment
+
+    def __getitem__(self, key: int) -> Node:
+        return (self.init, self.cond, self.incr, self.body)[key]
+
+    def __len__(self) -> int:
+        return 4
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitFor(self, ctx)
 
 
 class Break(Statement):
@@ -188,6 +228,26 @@ class Break(Statement):
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitBreak(self, ctx)
+
+    def is_leaf(self):
+        return True
+    
+class Continue(Statement):
+    """
+    AST node of continue statement.
+    """
+
+    def __init__(self) -> None:
+        super().__init__("continue")
+
+    def __getitem__(self, key: int) -> Node:
+        raise _index_len_err(key, self)
+
+    def __len__(self) -> int:
+        return 0
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitContinue(self, ctx)
 
     def is_leaf(self):
         return True

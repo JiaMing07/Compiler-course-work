@@ -31,10 +31,13 @@ def readCode(fileName):
 
 # The parser stage: MiniDecaf code -> Abstract syntax tree
 def step_parse(args: argparse.Namespace):
+    # print("parse")
     code = readCode(args.input)
+    # print(code)
     r: Program = parser.parse(code, lexer=lexer)
 
     errors = parser.error_stack
+    # print('err')
     if errors:
         print("\n".join(map(str, errors)), file=sys.stderr)
         exit(1)

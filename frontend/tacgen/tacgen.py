@@ -160,6 +160,9 @@ class TACGen(Visitor[TACFuncEmitter, None]):
 
     def visitBreak(self, stmt: Break, mv: TACFuncEmitter) -> None:
         mv.visitBranch(mv.getBreakLabel())
+        
+    def visitContinue(self, stmt: Continue, mv: TACFuncEmitter) -> None:
+        mv.visitBranch(mv.getContinueLabel())
 
     def visitIdentifier(self, ident: Identifier, mv: TACFuncEmitter) -> None:
         """
@@ -232,6 +235,46 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         mv.visitLabel(loopLabel)
         mv.visitBranch(beginLabel)
         mv.visitLabel(breakLabel)
+        mv.closeLoop()
+        
+    def visitDoWhile(self, stmt: DoWhile, mv: TACFuncEmitter) -> None:
+        beginLabel = mv.freshLabel()
+        loopLabel = mv.freshLabel()
+        breakLabel = mv.freshLabel()
+        mv.openLoop(breakLabel, loopLabel)
+
+        mv.visitLabel(beginLabel)
+        stmt.body.accept(self, mv)
+        # mv.visitLabel(loopLabel)
+        
+        stmt.cond.accept(self, mv)
+        mv.visitCondBranch(tacop.CondBranchOp.BEQ, stmt.cond.getattr("val"), breakLabel)
+        mv.visitLabel(loopLabel)
+        mv.visitBranch(beginLabel)
+        mv.visitLabel(breakLabel)
+
+        mv.closeLoop()
+        
+    def visitFor(self, stmt: For, mv: TACFuncEmitter) -> None:
+        beginLabel = mv.freshLabel()
+        loopLabel = mv.freshLabel()
+        breakLabel = mv.freshLabel()
+        
+        stmt.init.accept(self, mv)
+        
+        mv.openLoop(breakLabel, loopLabel)
+        mv.visitLabel(beginLabel)
+        
+        stmt.cond.accept(self, mv)
+        if stmt.cond.getattr("val") is not None:
+            mv.visitCondBranch(tacop.CondBranchOp.BEQ, stmt.cond.getattr("val"), breakLabel)
+        stmt.body.accept(self, mv)
+        
+        mv.visitLabel(loopLabel)
+        stmt.incr.accept(self, mv)
+        mv.visitBranch(beginLabel)
+        mv.visitLabel(breakLabel)
+
         mv.closeLoop()
 
     def visitUnary(self, expr: Unary, mv: TACFuncEmitter) -> None:
