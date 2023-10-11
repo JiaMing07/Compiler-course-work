@@ -1,5 +1,5 @@
 from enum import Enum, auto, unique
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, List
 
 from utils.label.label import Label
 from utils.tac.nativeinstr import NativeInstr
@@ -203,3 +203,28 @@ class Mark(TACInstr):
 
     def accept(self, v: TACVisitor) -> None:
         v.visitMark(self)
+        
+class Param(TACInstr):
+    def __init__(self, par: Temp) -> None:
+        super().__init__(InstrKind.SEQ, [par], [], None)
+        self.par = par
+
+    def __str__(self) -> str:
+        return "PARAM %s" % (self.par)
+
+    def accept(self, v: TACVisitor) -> None:
+        v.visitParam(self)
+        
+class CALL(TACInstr):
+    def __init__(self, dst: Temp, func: Label, argument_list: List[Temp]) -> None:
+        super().__init__(InstrKind.SEQ, [dst], [], func)
+        self.dst = dst
+        self.func = func
+        self.argument_list = argument_list
+
+    def __str__(self) -> str:
+        # print("self.func", self.func)
+        return f"{self.dst} = CALL {self.func}"
+
+    def accept(self, v: TACVisitor) -> None:
+        v.visitCall(self)

@@ -1,4 +1,4 @@
-from typing import Final, Optional
+from typing import Final, Optional, List
 
 from utils.label.funclabel import FuncLabel
 from utils.label.label import Label, LabelKind
@@ -158,6 +158,24 @@ class Riscv:
         
         def __str__(self) -> str:
             return "j " + str(self.target)
+        
+    class Param(TACInstr):
+        def __init__(self, src: Temp) -> None:
+            super().__init__(InstrKind.SEQ, [], [src], None)
+            self.src = src
+        
+        def __str__(self) -> str:
+            return f""
+        
+    class Call(TACInstr):
+        def __init__(self, dst: Temp, func: Label, argument_list: List[Temp]) -> None:
+            super().__init__(InstrKind.SEQ, [dst], argument_list, None)
+            self.func = func
+            self.argument_list = argument_list
+            
+        def __str__(self) -> str:
+            return f"call {str(self.func)}"
+    
 
     class SPAdd(NativeInstr):
         def __init__(self, offset: int) -> None:
@@ -198,3 +216,20 @@ class Riscv:
 
         def __str__(self) -> str:
             return "ret"
+        
+    class LoadArg(TACInstr):
+        def __init__(self, dst: Temp, src: Reg) -> None:
+            super().__init__(InstrKind.SEQ, [dst], [], None)
+            self.src = src
+            
+        def __str__(self) -> str:
+            return "mv " + Riscv.FMT2.format(str(self.dsts[0]), str(self.src))
+        
+    class LoadArgStack(TACInstr):
+        def __init__(self, dst: Temp, offset: int, reg: Reg) -> None:
+            super().__init__(InstrKind.SEQ, [dst], [], None)
+            self.offset = offset
+            self.reg = reg
+            
+        def __str__(self) -> str:
+            return "lw " + Riscv.FMT_OFFSET.format(self.dsts[0], self.reg, self.offset)

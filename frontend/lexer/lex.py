@@ -25,6 +25,8 @@ reserved = {
 
 t_Semi = ";"
 
+t_Coma = ","
+
 t_LParen = "("
 t_RParen = ")"
 t_LBrace = "{"

@@ -61,10 +61,69 @@ class BruteRegAlloc(RegAlloc):
             reg.occupied = False
 
         # in step9, you may need to think about how to store callersave regs here
+        args_stack = []
         for loc in bb.allSeq():
-            subEmitter.emitComment(str(loc.instr))
+            # print(loc.instr,loc.liveIn)
+            # print("loc", loc.instr, loc.instr.dsts)
+            if isinstance(loc.instr, Riscv.Param):
+                # print("param")
+                args_stack.append(loc.instr.srcs[0])
+            elif isinstance(loc.instr, Riscv.Call):
+                # print("call")
+                ret = loc.instr.dsts[0]
+                # 保存 caller_save 寄存器
+                saved_regs = []
+                sum = 0
+                # print("T1",Riscv.T1.occupied, Riscv.T1.temp.index)
+                # print("T0",Riscv.T0.occupied, Riscv.T0.temp.index)
+                for reg in Riscv.CallerSaved:
+                    if reg.occupied and reg.temp.index in loc.liveIn:
+                        # print("reg", reg)
+                        subEmitter.emitStoreToStack(reg)
+                        saved_regs.append([reg.temp, reg])
+                        self.unbind(reg.temp)
+                        
+                # 传参
+                # print("T1",Riscv.T0.occupied, Riscv.T0.temp.index)
+                if len(loc.instr.argument_list) > 8:
+                    subEmitter.emitNative(Riscv.SPAdd(-4 * (len(loc.instr.argument_list) - 8)))
+                for idx, arg in enumerate(loc.instr.argument_list):
+                    reg = self.allocRegFor(arg, True, loc.liveIn, subEmitter)
+                    sw = Riscv.NativeStoreWord(reg, Riscv.SP, -4*(idx + 4))
+                    # print(sw.instrString)
+                    subEmitter.emitNative(sw)
+                    self.unbind(arg)
+                        
+                # 调用
+                # print("T1",Riscv.T0.occupied, Riscv.T0.temp.index)
+                if len(loc.instr.argument_list) > 8:
+                    subEmitter.emitNative(Riscv.SPAdd(-4 * (len(loc.instr.argument_list) - 8)))
+                subEmitter.emitNative(loc.instr.toNative([], []))
+                # print([instr.instrString for instr in subEmitter.buf])
+                # print(ret, loc.instr.dsts)
+                self.bind(ret, Riscv.A0)
+                if len(loc.instr.argument_list) > 8:
+                    subEmitter.emitNative(Riscv.SPAdd(4 * (len(loc.instr.argument_list) - 8)))
+                
+                # 恢复 caller_saved 寄存器
+                # print("T1",Riscv.T0.occupied, Riscv.T0.temp.index)
+                args_stack = args_stack[:-len(loc.instr.argument_list)]
+                for temp_reg in saved_regs:
+                    if temp_reg[1].occupied:
+                        # print("occ", temp_reg[1], temp_reg[1].temp.index)
+                        subEmitter.emitStoreToStack(temp_reg[1])
+                        self.unbind(temp_reg[1].temp)
+                    subEmitter.emitLoadFromStack(temp_reg[1], temp_reg[0])
+                    self.bind(temp_reg[0], temp_reg[1])
+                    
+                # print([instr.instrString for instr in subEmitter.buf])
+             
+            else:
+                subEmitter.emitComment(str(loc.instr))
 
-            self.allocForLoc(loc, subEmitter)
+                self.allocForLoc(loc, subEmitter)
+            # print("loc", loc.instr)
+            # print([instr.instrString for instr in subEmitter.buf])   
 
         for tempindex in bb.liveOut:
             if tempindex in self.bindings:
@@ -102,6 +161,7 @@ class BruteRegAlloc(RegAlloc):
 
         for reg in self.emitter.allocatableRegs:
             if (not reg.occupied) or (not reg.temp.index in live):
+                # print("reg", reg.index, reg)
                 subEmitter.emitComment(
                     "  allocate {} to {}  (read: {}):".format(
                         str(temp), str(reg), str(isRead)
