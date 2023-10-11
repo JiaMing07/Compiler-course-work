@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Generic, Optional, TypeVar, Union, List
 
-from frontend.type import INT, DecafType
+from frontend.type import INT, DecafType, ArrayType
 from utils import T, U
 
 from .node import NULL, BinaryOp, Node, UnaryOp
@@ -52,7 +52,7 @@ class Program(ListNode["Function"]):
     AST root. It should have only one children before step9.
     """
 
-    def __init__(self, children: List[Function]) -> None:
+    def __init__(self, children: List[Union[Function, Declaration]]) -> None:
         super().__init__("program", children)
 
     def functions(self) -> dict[str, Function]:
@@ -62,6 +62,14 @@ class Program(ListNode["Function"]):
             raise DecafDeclConflictError("functions")
         return {func.ident.value: func for func in self.children if isinstance(func, Function)}
 
+
+    def globals(self) -> dict[str, Declaration]:
+        ident_list = [decl.ident.value for decl in self if isinstance(decl, Declaration)]
+        decls_dict = {decl.ident.value: decl for decl in self.children if isinstance(decl, Declaration)}
+        if len(ident_list) != len(decls_dict):
+            raise DecafDeclConflictError("functions")
+        return {decl.ident.value: decl for decl in self.children if isinstance(decl, Declaration)}
+    
     def hasMainFunc(self) -> bool:
         return "main" in self.functions()
 
@@ -535,6 +543,21 @@ class TInt(TypeLiteral):
 
     def __init__(self) -> None:
         super().__init__("type_int", INT)
+
+    def __getitem__(self, key: int) -> Node:
+        raise _index_len_err(key, self)
+
+    def __len__(self) -> int:
+        return 0
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitTInt(self, ctx)
+    
+class TArray(TypeLiteral):
+    "AST node of type `int[]`."
+
+    def __init__(self, _type: DecafType, dims: List[int]) -> None:
+        super().__init__("type_array", ArrayType.multidim())
 
     def __getitem__(self, key: int) -> Node:
         raise _index_len_err(key, self)

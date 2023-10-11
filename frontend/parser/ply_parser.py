@@ -38,6 +38,26 @@ def p_empty(p: yacc.YaccProduction):
     """
     pass
 
+def p_union(p):
+    """
+    union : function
+        | declaration Semi
+    """
+    p[0] = p[1]
+    
+def p_program_union_base(p):
+    """
+    unions : union
+    """
+    p[0] = [p[1]]
+    
+def p_program_unions(p):
+    """
+    unions : unions union
+    """
+    p[1].append(p[2])
+    p[0] = p[1]
+
 
 def p_program_base_function(p):
     """
@@ -55,7 +75,7 @@ def p_program_function(p):
     
 def p_program(p):
     """
-    program : functions
+    program : unions
     """
     p[0] = Program(p[1])
 

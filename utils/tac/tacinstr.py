@@ -4,10 +4,12 @@ from typing import Any, Optional, Union, List
 from utils.label.label import Label
 from utils.tac.nativeinstr import NativeInstr
 from utils.tac.reg import Reg
+from utils.tac.tacop import InstrKind
 
 from .tacop import *
 from .tacvisitor import TACVisitor
 from .temp import Temp
+
 
 
 class TACInstr:
@@ -228,3 +230,36 @@ class CALL(TACInstr):
 
     def accept(self, v: TACVisitor) -> None:
         v.visitCall(self)
+
+class LoadWord(TACInstr):
+    def __init__(self, dst: Temp, src: Temp, offset: int) -> None:
+        super().__init__(InstrKind.SEQ, [dst], [src], None)
+        self.offset = offset
+        
+    def __str__(self) -> str:
+        return f"{self.dsts[0]} =  LOAD {self.srcs[0]}, {self.offset}"
+    
+    def accept(self, v: TACVisitor) -> None:
+        v.visitLoadWord(self)
+        
+class SaveWord(TACInstr):
+    def __init__(self, dst: Temp, src: Temp, offset: int) -> None:
+        super().__init__(InstrKind.SEQ, [dst], [src], None)
+        self.offset = offset
+        
+    def __str__(self) -> str:
+        return f"{self.dsts[0]} =  SAVE {self.srcs[0]}, {self.offset}"
+    
+    def accept(self, v: TACVisitor) -> None:
+        v.visitSaveWord(self)
+        
+class LoadSymbol(TACInstr):
+    def __init__(self, dst: Temp, global_symbol) -> None:
+        super().__init__(InstrKind.SEQ, [dst], [], None)
+        self.global_symbol = global_symbol
+        
+    def __str__(self) -> str:
+        return f"{self.dsts[0]} =  LOAD_SYMBOL {self.global_symbol.name}"
+    
+    def accept(self, v: TACVisitor) -> None:
+        v.visitLoadSymbol(self)

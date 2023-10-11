@@ -38,6 +38,9 @@ class Namer(Visitor[ScopeStack, None]):
         # Check if the 'main' function is missing
         if not program.hasMainFunc():
             raise DecafNoMainFuncError
+        
+        for glob in program.globals().values():
+            glob.accept(self, ctx)
 
         for func in program.functions().values():
             func.accept(self, ctx)
@@ -178,15 +181,30 @@ class Namer(Visitor[ScopeStack, None]):
         4. If there is an initial value, visit it.
         """
         sym = ctx.lookup_current(decl.ident.value)
-        # print(sym, ctx.current_scope().symbols)
         if sym != None:
             raise DecafDeclConflictError(decl.ident.value)
         else:
-            new_varsymbol = VarSymbol(decl.ident.value, decl.var_t.type)
-            ctx.declare(new_varsymbol)
-            decl.setattr("symbol", new_varsymbol)
-            if decl.init_expr is not NULL:
-                decl.init_expr.accept(self, ctx)
+            if ctx.isGlobalScope():
+                isInit = False
+                if decl.init_expr is not NULL:
+                    isInit = True
+                new_varsymbol = VarSymbol(decl.ident.value, decl.var_t.type, True, isInit)
+                ctx.declare_global(new_varsymbol)
+                init = 0
+                if isInit:
+                    if not isinstance(decl.init_expr, IntLiteral):
+                        raise DecafGlobalVarBadInitValueError(decl.ident.value)
+                    decl.init_expr.accept(self, ctx)
+                    init = decl.init_expr.value
+
+                new_varsymbol.setInitValue(init)
+                decl.setattr("symbol", new_varsymbol)
+            else:
+                new_varsymbol = VarSymbol(decl.ident.value, decl.var_t.type, False)
+                ctx.declare(new_varsymbol)
+                decl.setattr("symbol", new_varsymbol)
+                if decl.init_expr is not NULL:
+                    decl.init_expr.accept(self, ctx)
         # raise NotImplementedError
 
     def visitAssignment(self, expr: Assignment, ctx: ScopeStack) -> None:
@@ -235,8 +253,6 @@ class Namer(Visitor[ScopeStack, None]):
             ident.setattr("symbol", sym)
         # print(ident.value, sym.type, sym)
         ident.type = sym.type
-        # print(ident.type)
-        # raise NotImplementedError
 
     def visitIntLiteral(self, expr: IntLiteral, ctx: ScopeStack) -> None:
         value = expr.value

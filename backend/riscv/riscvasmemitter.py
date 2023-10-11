@@ -7,10 +7,14 @@ from utils.riscv import Riscv, RvBinaryOp, RvUnaryOp
 from utils.tac.reg import Reg
 from utils.tac.tacfunc import TACFunc
 from utils.tac.tacinstr import *
+from utils.tac.tacinstr import LoadSymbol
 from utils.tac.tacvisitor import TACVisitor
 
 from ..subroutineemitter import SubroutineEmitter
 from ..subroutineinfo import SubroutineInfo
+
+from frontend.scope.globalscope import GlobalScope
+from frontend.symbol.varsymbol import VarSymbol
 
 """
 RiscvAsmEmitter: an AsmEmitter for RiscV
@@ -24,13 +28,25 @@ class RiscvAsmEmitter(AsmEmitter):
         callerSaveRegs: list[Reg],
     ) -> None:
         super().__init__(allocatableRegs, callerSaveRegs)
+        self.ctx = GlobalScope
 
     
         # the start of the asm code
         # int step10, you need to add the declaration of global var here
+        for name, symbol in GlobalScope.symbols.items():
+            if isinstance(symbol, VarSymbol):
+                if symbol.isInit:
+                    self.printer.println(".data")
+                else:
+                    self.printer.println(".bss")
+                self.printer.println(f".globl {name}")
+                self.printer.println(f"{name}:")
+                self.printer.println(f"    .word {symbol.initValue}")
+        
         self.printer.println(".text")
         self.printer.println(".global main")
         self.printer.println("")
+            
 
     # transform tac instrs to RiscV instrs
     # collect some info which is saved in SubroutineInfo for SubroutineEmitter
@@ -148,7 +164,15 @@ class RiscvAsmEmitter(AsmEmitter):
             
         def visitCall(self, instr: CALL) -> None:
             self.seq.append(Riscv.Call(instr.dst, instr.func, instr.argument_list))
-
+            
+        def visitLoadWord(self, instr: LoadWord) -> None:
+            self.seq.append(Riscv.LoadWord(instr.dsts[0], instr.srcs[0], instr.offset))
+            
+        def visitSaveWord(self, instr: SaveWord) -> None:
+            self.seq.append(Riscv.StoreWord(instr.dsts[0], instr.srcs[0], instr.offset))
+            
+        def visitLoadSymbol(self, instr: LoadSymbol) -> None:
+            self.seq.append(Riscv.LoadSymbol(instr.dsts[0], instr.global_symbol))
         # in step9, you need to think about how to pass the parameters and how to store and restore callerSave regs
         # in step11, you need to think about how to store the array 
 """

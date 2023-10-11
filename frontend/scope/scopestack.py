@@ -24,6 +24,11 @@ class ScopeStack:
     def declare(self, symbol: Symbol) -> None:
         current = self.current_scope()
         current.declare(symbol)
+    
+    # To declare a global symbol
+    def declare_global(self, symbol: Symbol) -> None:
+        global_scope = self.stack[0]
+        global_scope.declare(symbol) 
 
     # To check if this is a global scope.
     def isGlobalScope(self) -> bool:

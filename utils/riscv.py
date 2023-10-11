@@ -187,6 +187,36 @@ class Riscv:
             return "addi " + Riscv.FMT3.format(
                 str(Riscv.SP), str(Riscv.SP), str(self.offset)
             )
+            
+    class LoadSymbol(TACInstr):
+        def __init__(self, dst: Temp, symbol) -> None:
+            super().__init__(InstrKind.SEQ, [dst], [], None)
+            self.symbol = symbol
+            
+        def __str__(self) -> str:
+            return f"la {self.dsts[0]}, {self.symbol.name}"
+            
+    class StoreWord(TACInstr):
+        def __init__(self, dst: Temp, src: Temp, offset: int) -> None:
+            super().__init__(InstrKind.SEQ, [dst], [src], None)
+            self.offset = offset
+            
+        def __str__(self) -> str:
+            assert -2048 <= self.offset <= 2047
+            return "sw " + Riscv.FMT_OFFSET.format(
+                str(self.dsts[0]), str(self.offset), str(self.srcs[0])
+            )
+            
+    class LoadWord(TACInstr):
+        def __init__(self, dst: Reg, base: Reg, offset: int) -> None:
+            super().__init__(InstrKind.SEQ, [dst], [base], None)
+            self.offset = offset
+
+        def __str__(self) -> str:
+            assert -2048 <= self.offset <= 2047  # Riscv imm [11:0]
+            return "lw " + Riscv.FMT_OFFSET.format(
+                str(self.dsts[0]), str(self.offset), str(self.srcs[0])
+            )
 
     class NativeStoreWord(NativeInstr):
         def __init__(self, src: Reg, base: Reg, offset: int) -> None:
