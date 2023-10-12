@@ -102,8 +102,6 @@ class Namer(Visitor[ScopeStack, None]):
             symbols = current_scope.symbols
             scope.symbols.update(symbols)
         ctx.push_scope(scope)
-        # print("if", ctx.current_scope().symbols, ctx.stack)
-        # print("curr", ctx.current_scope().symbols, ctx.stack)
         for child in block:
             # print(type(child), ctx.stack,ctx.current_scope().symbols)
             child.accept(self, ctx)
@@ -172,6 +170,15 @@ class Namer(Visitor[ScopeStack, None]):
         """
         if not ctx.is_loop():
             raise DecafBreakOutsideLoopError()
+        
+    def check_array(self, decl: Declaration, symbol: VarSymbol) -> VarSymbol:
+        if decl.is_array:
+            for dim in decl.dims:
+                if dim <= 0 or dim > MAX_INT:
+                    raise DecafBadArraySizeError()
+            symbol.dims = decl.dims
+            symbol.is_array = True
+        return symbol
 
     def visitDeclaration(self, decl: Declaration, ctx: ScopeStack) -> None:
         """
@@ -189,6 +196,7 @@ class Namer(Visitor[ScopeStack, None]):
                 if decl.init_expr is not NULL:
                     isInit = True
                 new_varsymbol = VarSymbol(decl.ident.value, decl.var_t.type, True, isInit)
+                new_varsymbol = self.check_array(decl, new_varsymbol)
                 ctx.declare_global(new_varsymbol)
                 init = 0
                 if isInit:
@@ -201,6 +209,7 @@ class Namer(Visitor[ScopeStack, None]):
                 decl.setattr("symbol", new_varsymbol)
             else:
                 new_varsymbol = VarSymbol(decl.ident.value, decl.var_t.type, False)
+                new_varsymbol = self.check_array(decl, new_varsymbol)
                 ctx.declare(new_varsymbol)
                 decl.setattr("symbol", new_varsymbol)
                 if decl.init_expr is not NULL:
@@ -222,11 +231,18 @@ class Namer(Visitor[ScopeStack, None]):
 
     def visitUnary(self, expr: Unary, ctx: ScopeStack) -> None:
         expr.operand.accept(self, ctx)
+        sym = ctx.lookup(expr.operand.value)
+        if isinstance(expr.operand, Identifier) and sym.is_array:
+            raise DecafTypeMismatchError()
         expr.type = expr.operand.type
 
     def visitBinary(self, expr: Binary, ctx: ScopeStack) -> None:
         expr.lhs.accept(self, ctx)
         expr.rhs.accept(self, ctx)
+        lhs_sym = ctx.lookup(expr.lhs.value)
+        rhs_sym = ctx.lookup(expr.rhs.value)
+        if (isinstance(expr.lhs, Identifier) and lhs_sym.is_array) or (isinstance(expr.rhs, Identifier) and rhs_sym.is_array):
+            raise DecafTypeMismatchError()
         expr.type = expr.lhs.type
 
     def visitCondExpr(self, expr: ConditionExpression, ctx: ScopeStack) -> None:
@@ -258,3 +274,17 @@ class Namer(Visitor[ScopeStack, None]):
         value = expr.value
         if value > MAX_INT:
             raise DecafBadIntValueError(value)
+        
+    def visitArrayElement(self, array_element: ArrayElement, ctx: ScopeStack) -> None:
+        symbol = ctx.lookup(array_element.ident.value)
+        if symbol is None:
+            raise DecafUndefinedVarError(array_element.ident.value)
+        if not symbol.is_array:
+            raise DecafTypeMismatchError()
+        if len(symbol.dims) != len(array_element.indexes):
+            raise DecafBadArraySizeError()
+        for i, idx in enumerate(array_element.indexes):
+            if isinstance(idx, IntLiteral) and idx.value > symbol.dims[i]:
+                raise DecafBadIndexError
+            idx.accept(self, ctx)
+        array_element.setattr("symbol", symbol)

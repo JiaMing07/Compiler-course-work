@@ -1,6 +1,9 @@
 from utils.tac.temp import Temp
 
+from typing import List
+
 from .symbol import *
+
 
 """
 Variable symbol, representing a variable definition.
@@ -14,6 +17,8 @@ class VarSymbol(Symbol):
         self.isGlobal = isGlobal
         self.initValue = 0
         self.isInit = isInit
+        self.is_array = False
+        self.dims = []
 
     def __str__(self) -> str:
         return "variable %s : %s" % (self.name, str(self.type))

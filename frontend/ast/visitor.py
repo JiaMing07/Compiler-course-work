@@ -81,11 +81,17 @@ class Visitor(Protocol[T, U]):  # type: ignore
 
     def visitIdentifier(self, that: Identifier, ctx: T) -> Optional[U]:
         return self.visitOther(that, ctx)
+    
+    def visitArrayElement(self, that: ArrayElement, ctx: T) -> Optional[U]:
+        return self.visitOther(that, ctx)
 
     def visitIntLiteral(self, that: IntLiteral, ctx: T) -> Optional[U]:
         return self.visitOther(that, ctx)
 
     def visitTInt(self, that: TInt, ctx: T) -> Optional[U]:
+        return self.visitOther(that, ctx)
+    
+    def visitTArray(self, that: TArray, ctx: T) -> Optional[U]:
         return self.visitOther(that, ctx)
 
 

@@ -48,3 +48,6 @@ class TACVisitor:
           
      def visitLoadSymbol(self, instr: LoadSymbol) -> None:
           self.visitOther(instr)
+          
+     def visitAlloc(self, instr: Alloc) -> None:
+          self.visitOther(instr)

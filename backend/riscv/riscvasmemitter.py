@@ -16,6 +16,9 @@ from ..subroutineinfo import SubroutineInfo
 from frontend.scope.globalscope import GlobalScope
 from frontend.symbol.varsymbol import VarSymbol
 
+
+from math import prod
+
 """
 RiscvAsmEmitter: an AsmEmitter for RiscV
 """
@@ -39,9 +42,14 @@ class RiscvAsmEmitter(AsmEmitter):
                     self.printer.println(".data")
                 else:
                     self.printer.println(".bss")
-                self.printer.println(f".globl {name}")
-                self.printer.println(f"{name}:")
-                self.printer.println(f"    .word {symbol.initValue}")
+                if not symbol.is_array:
+                    self.printer.println(f".globl {name}")
+                    self.printer.println(f"{name}:")
+                    self.printer.println(f"    .word {symbol.initValue}")
+                else:
+                    self.printer.println(f".globl {name}")
+                    self.printer.println(f"{name}:")
+                    self.printer.println(f"    .zero {4 * prod(symbol.dims)}")
         
         self.printer.println(".text")
         self.printer.println(".global main")
@@ -173,8 +181,13 @@ class RiscvAsmEmitter(AsmEmitter):
             
         def visitLoadSymbol(self, instr: LoadSymbol) -> None:
             self.seq.append(Riscv.LoadSymbol(instr.dsts[0], instr.global_symbol))
+        
+        def visitAlloc(self, instr: Alloc) -> None:
+            self.seq.append(Riscv.Alloc(instr.dsts[0], instr.size))
+            
         # in step9, you need to think about how to pass the parameters and how to store and restore callerSave regs
         # in step11, you need to think about how to store the array 
+        
 """
 RiscvAsmEmitter: an SubroutineEmitter for RiscV
 """
@@ -207,7 +220,7 @@ class RiscvSubroutineEmitter(SubroutineEmitter):
     # in step9, you need to think about the fuction parameters here
     def emitStoreToStack(self, src: Reg) -> None:
         if src.temp.index not in self.offsets:
-            self.offsets[src.temp.index] = self.nextLocalOffset
+            self.offsets[src.temp.index] = self.nextLocalOffset - 12
             self.nextLocalOffset += 4
         self.buf.append(
             Riscv.NativeStoreWord(src, Riscv.SP, self.offsets[src.temp.index])
@@ -224,6 +237,12 @@ class RiscvSubroutineEmitter(SubroutineEmitter):
             self.buf.append(
                 Riscv.NativeLoadWord(dst, Riscv.SP, self.offsets[src.index])
             )
+    
+    def emitAlloc(self, dst: Reg, size: int) -> None:
+        self.buf.append(
+            Riscv.AllocOnStack(dst, self.nextLocalOffset-12)
+        )
+        self.nextLocalOffset += size
 
     # add a NativeInstr to buf
     # when calling the fuction emitEnd, all the instr in buf will be transformed to RiscV code

@@ -195,6 +195,7 @@ class DoWhile(Statement):
 
     def __init__(self, cond: Expression, body: Statement) -> None:
         super().__init__("dowhile")
+        # print(cond)
         self.cond = cond
         self.body = body
 
@@ -295,11 +296,15 @@ class Declaration(Node):
         var_t: TypeLiteral,
         ident: Identifier,
         init_expr: Optional[Expression] = None,
+        is_array = False,
+        dims: list(int) = []
     ) -> None:
         super().__init__("declaration")
         self.var_t = var_t
         self.ident = ident
         self.init_expr = init_expr or NULL
+        self.is_array = is_array
+        self.dims = dims
 
     def __getitem__(self, key: int) -> Node:
         return (self.var_t, self.ident, self.init_expr)[key]
@@ -354,6 +359,7 @@ class Call(Expression):
         super().__init__("call")
         self.ident = ident
         self.argument_list = argument_list
+        self.value = f"{ident.value} {argument_list}"
 
     def __getitem__(self, key: int) -> Node:
         return (self.ident, self.argument_list)[key]
@@ -380,6 +386,7 @@ class Unary(Expression):
         super().__init__(f"unary({op.value})")
         self.op = op
         self.operand = operand
+        self.value = f"{self.op} {self.operand}"
 
     def __getitem__(self, key: int) -> Node:
         return (self.operand,)[key]
@@ -408,6 +415,7 @@ class Binary(Expression):
         self.lhs = lhs
         self.op = op
         self.rhs = rhs
+        self.value = f"{self.lhs} {self.op} {self.rhs}"
 
     def __getitem__(self, key: int) -> Node:
         return (self.lhs, self.rhs)[key]
@@ -434,6 +442,7 @@ class Assignment(Binary):
 
     def __init__(self, lhs: Identifier, rhs: Expression) -> None:
         super().__init__(BinaryOp.Assign, lhs, rhs)
+        self.value = f"{lhs} = {rhs}"
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitAssignment(self, ctx)
@@ -451,6 +460,7 @@ class ConditionExpression(Expression):
         self.cond = cond
         self.then = then
         self.otherwise = otherwise
+        self.value = f"{cond} ? {then} : {otherwise}"
 
     def __getitem__(self, key: Union[int, str]) -> Node:
         if isinstance(key, int):
@@ -557,7 +567,7 @@ class TArray(TypeLiteral):
     "AST node of type `int[]`."
 
     def __init__(self, _type: DecafType, dims: List[int]) -> None:
-        super().__init__("type_array", ArrayType.multidim())
+        super().__init__("type_array", ArrayType.multidim(_type, *dims))
 
     def __getitem__(self, key: int) -> Node:
         raise _index_len_err(key, self)
@@ -566,4 +576,31 @@ class TArray(TypeLiteral):
         return 0
 
     def accept(self, v: Visitor[T, U], ctx: T):
-        return v.visitTInt(self, ctx)
+        return v.visitTArray(self, ctx)
+
+class ArrayElement(Expression):
+    """
+    AST node of array_element "expression".
+    """
+
+    def __init__(self, ident: Identifier, indexes: List[Expression] ) -> None:
+        super().__init__("array_element")
+        self.ident = ident
+        self.value = ident.value
+        self.indexes = indexes
+
+    def __getitem__(self, key: int) -> Node:
+        raise (self.ident, self.indexes)[key]
+
+    def __len__(self) -> int:
+        return 3
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitArrayElement(self, ctx)
+
+    def __str__(self) -> str:
+        ind = [str([i.value]) for i in self.indexes]
+        return f"array element {self.value}{''.join(ind)}"
+
+    def is_leaf(self):
+        return True

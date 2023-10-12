@@ -263,3 +263,14 @@ class LoadSymbol(TACInstr):
     
     def accept(self, v: TACVisitor) -> None:
         v.visitLoadSymbol(self)
+        
+class Alloc(TACInstr):
+    def __init__(self, dst: Temp, size: int) -> None:
+        super().__init__(InstrKind.SEQ, [dst], [], None)
+        self.size = size
+        
+    def __str__(self) -> str:
+        return f"{self.dsts[0]} = ALLOC {self.size}"
+    
+    def accept(self, v: TACVisitor) -> None:
+        return v.visitAlloc(self)

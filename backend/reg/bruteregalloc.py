@@ -95,35 +95,29 @@ class BruteRegAlloc(RegAlloc):
                     self.unbind(arg)
                         
                 # 调用
-                # print("T1",Riscv.T0.occupied, Riscv.T0.temp.index)
                 if len(loc.instr.argument_list) > 8:
                     subEmitter.emitNative(Riscv.SPAdd(-4 * (len(loc.instr.argument_list) - 8)))
                 subEmitter.emitNative(loc.instr.toNative([], []))
-                # print([instr.instrString for instr in subEmitter.buf])
-                # print(ret, loc.instr.dsts)
                 self.bind(ret, Riscv.A0)
                 if len(loc.instr.argument_list) > 8:
                     subEmitter.emitNative(Riscv.SPAdd(4 * (len(loc.instr.argument_list) - 8)))
                 
                 # 恢复 caller_saved 寄存器
-                # print("T1",Riscv.T0.occupied, Riscv.T0.temp.index)
                 args_stack = args_stack[:-len(loc.instr.argument_list)]
                 for temp_reg in saved_regs:
                     if temp_reg[1].occupied:
-                        # print("occ", temp_reg[1], temp_reg[1].temp.index)
                         subEmitter.emitStoreToStack(temp_reg[1])
                         self.unbind(temp_reg[1].temp)
                     subEmitter.emitLoadFromStack(temp_reg[1], temp_reg[0])
                     self.bind(temp_reg[0], temp_reg[1])
                     
-                # print([instr.instrString for instr in subEmitter.buf])
-             
+            elif isinstance(loc.instr, Riscv.Alloc):
+                dst = self.allocRegFor(loc.instr.dsts[0], False, loc.liveIn, subEmitter)
+                subEmitter.emitAlloc(dst, loc.instr.size)
             else:
                 subEmitter.emitComment(str(loc.instr))
 
                 self.allocForLoc(loc, subEmitter)
-            # print("loc", loc.instr)
-            # print([instr.instrString for instr in subEmitter.buf])   
 
         for tempindex in bb.liveOut:
             if tempindex in self.bindings:
@@ -136,6 +130,7 @@ class BruteRegAlloc(RegAlloc):
         instr = loc.instr
         srcRegs: list[Reg] = []
         dstRegs: list[Reg] = []
+        # print(loc.instr, loc.liveIn, Riscv.T0.occupied)
 
         for i in range(len(instr.srcs)):
             temp = instr.srcs[i]
@@ -157,11 +152,11 @@ class BruteRegAlloc(RegAlloc):
         self, temp: Temp, isRead: bool, live: set[int], subEmitter: SubroutineEmitter
     ):
         if temp.index in self.bindings:
+            # print(temp.index, self.bindings[temp.index])
             return self.bindings[temp.index]
 
         for reg in self.emitter.allocatableRegs:
             if (not reg.occupied) or (not reg.temp.index in live):
-                # print("reg", reg.index, reg)
                 subEmitter.emitComment(
                     "  allocate {} to {}  (read: {}):".format(
                         str(temp), str(reg), str(isRead)

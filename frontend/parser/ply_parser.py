@@ -243,7 +243,7 @@ def p_dowhile(p):
     statement_matched : Do statement_matched While LParen expression RParen Semi
     statement_unmatched : Do statement_unmatched While LParen expression RParen Semi
     """
-    p[0] = DoWhile(p[7], p[2])
+    p[0] = DoWhile(p[5], p[2])
     
 def p_for_init(p):
     """
@@ -352,7 +352,7 @@ def p_unary_expression(p):
 
 def p_binary_expression(p):
     """
-    assignment : Identifier Assign expression
+    assignment : unary Assign expression
     logical_or : logical_or Or logical_and
     logical_and : logical_and And bit_or
     bit_or : bit_or BitOr xor
@@ -399,7 +399,49 @@ def p_brace_expression(p):
     primary : LParen expression RParen
     """
     p[0] = p[2]
-
+    
+def p_one_dim_array(p):
+    """
+    one_dim_array : type Identifier LBracklet Integer RBracklet
+    """
+    p[0] = Declaration(TArray(p[1].type, [p[4].value]), p[2], NULL,True, [p[4].value])
+    
+def p_multi_dim_array(p):
+    """
+    multi_dim_array : one_dim_array LBracklet Integer RBracklet
+        | multi_dim_array LBracklet Integer RBracklet
+    """
+    p[1].dims.append(p[3].value)
+    p[1].var_t = TArray(p[1].var_t.type.full_indexed, p[1].dims)
+    p[0] = p[1]
+    
+def p_array_declaration(p):
+    """
+    declaration : one_dim_array
+        | multi_dim_array
+    """
+    p[0] = p[1]
+    
+def p_one_dim_postfix(p):
+    """
+    one_dim_postfix : Identifier LBracklet expression RBracklet
+    """
+    p[0] = ArrayElement(p[1], [p[3]])
+    
+def p_multi_dim_postfix(p):
+    """
+    multi_dim_postfix : one_dim_postfix LBracklet expression RBracklet
+        | multi_dim_postfix LBracklet expression RBracklet
+    """
+    p[1].indexes.append(p[3])
+    p[0] = p[1]
+    
+def p_array_postfix(p):
+    """
+    postfix : one_dim_postfix
+        | multi_dim_postfix
+    """
+    p[0] = p[1]
 
 def p_error(t):
     """
