@@ -32,7 +32,16 @@ def readCode(fileName):
 # The parser stage: MiniDecaf code -> Abstract syntax tree
 def step_parse(args: argparse.Namespace):
     # print("parse")
+    fill_in = """
+int fill_n(int a[], int n, int v) {
+    for (int i = 0; i < n; i = i + 1) {
+    a[i] = v;
+    }
+    return 0;
+}"""
     code = readCode(args.input)
+    # print(code)
+    code = fill_in + code
     # print(code)
     r: Program = parser.parse(code, lexer=lexer)
 

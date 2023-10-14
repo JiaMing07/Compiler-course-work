@@ -195,7 +195,6 @@ class DoWhile(Statement):
 
     def __init__(self, cond: Expression, body: Statement) -> None:
         super().__init__("dowhile")
-        # print(cond)
         self.cond = cond
         self.body = body
 
@@ -315,6 +314,9 @@ class Declaration(Node):
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitDeclaration(self, ctx)
     
+    def set_init(self, init_expr):
+        self.init_expr = init_expr
+    
 class Parameter(Declaration):
     """
     AST node of declaration.
@@ -325,11 +327,15 @@ class Parameter(Declaration):
         var_t: TypeLiteral,
         ident: Identifier,
         init_expr: Optional[Expression] = None,
+        dims: List[int] = [],
+        is_array: bool = False
     ) -> None:
         super().__init__(self, var_t, ident)
         self.var_t = var_t
         self.ident = ident
         self.init_expr = init_expr or NULL
+        self.dims = dims
+        self.is_array = is_array
 
     def __getitem__(self, key: int) -> Node:
         return (self.var_t, self.ident)[key]
@@ -339,6 +345,10 @@ class Parameter(Declaration):
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitParameter(self, ctx)
+    
+    def expand_dims(self, dim: int):
+        print(self.ident,dim)
+        self.dims.append(dim)
 
 
 class Expression(Node):
@@ -489,6 +499,7 @@ class Identifier(Expression):
     def __init__(self, value: str) -> None:
         super().__init__("identifier")
         self.value = value
+        # print("ident", self.value)
 
     def __getitem__(self, key: int) -> Node:
         raise _index_len_err(key, self)
@@ -530,6 +541,9 @@ class IntLiteral(Expression):
 
     def is_leaf(self):
         return True
+    
+    def get_value_list(self):
+        return [self.value]
 
 
 class TypeLiteral(Node):
@@ -604,3 +618,26 @@ class ArrayElement(Expression):
 
     def is_leaf(self):
         return True
+    
+class Int_list(Expression):
+    """
+    init value of array
+    """
+    def __init__(self, values: List[int]) -> None:
+        super().__init__("int_list")
+        self.value = values
+        
+    def __getitem__(self, key: int) -> Node:
+        return self.value[key]
+
+    def __len__(self) -> int:
+        return len(self.value)
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitIntList(self, ctx)
+    
+    def get_value_list(self):
+        return self.value
+    
+    def add_value(self, val):
+        self.value.append(val)

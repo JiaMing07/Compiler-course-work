@@ -93,6 +93,9 @@ class Visitor(Protocol[T, U]):  # type: ignore
     
     def visitTArray(self, that: TArray, ctx: T) -> Optional[U]:
         return self.visitOther(that, ctx)
+    
+    def visitIntList(self, that: Int_list, ctx: T) ->Optional[U]:
+        return self.visitOther(that, ctx)
 
 
 class RecursiveVisitor(Visitor[T, U]):

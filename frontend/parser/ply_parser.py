@@ -88,15 +88,52 @@ def p_type(p):
     
 def p_parameter(p):
     """
-    parameter : type Identifier
+    parameter_int : type Identifier
     """
     p[0] = Parameter(p[1], p[2])
+
+def p_parameter_array_empty(p):
+    """
+    parameter_empty_dim : parameter_int LBracklet empty RBracklet
+    """
+    p[1].dims = [0]
+    p[1].var_t = TArray(p[1].var_t.type, p[1].dims)
+    p[1].is_array = True
+    p[0] = p[1]
+    
+def p_parameter_array_one_dim(p):
+    """
+    parameter_one_dim : parameter_int LBracklet Integer RBracklet
+    """
+    p[1].dims = [p[3].value]
+    p[1].var_t = TArray(p[1].var_t.type, p[1].dims)
+    p[1].is_array = True
+    p[0] = p[1]
+    
+def p_array_parameter_multi(p):
+    """
+    parameter_multi_dim : parameter_one_dim LBracklet Integer RBracklet
+        | parameter_empty_dim LBracklet Integer RBracklet
+    """
+    p[1].expand_dims(p[3].value)
+    p[1].var_t = TArray(p[1].var_t.type.full_indexed, p[1].dims)
+    p[1].is_array = True
+    p[0] = p[1]
+
+def p_parameter_array(p):
+    """
+    parameter : parameter_empty_dim
+        | parameter_one_dim
+        | parameter_multi_dim
+        | parameter_int
+    """
+    p[0] = p[1]
     
 def p_parameter_list_base(p):
     """
-    parameter_list_base : type Identifier Coma
+    parameter_list_base : parameter Coma
     """
-    p[0] = Parameter(p[1], p[2])
+    p[0] = p[1]
     
     
 def p_parameter_list_prefix_first(p):
@@ -399,6 +436,33 @@ def p_brace_expression(p):
     primary : LParen expression RParen
     """
     p[0] = p[2]
+    
+def p_int_list_empty(p):
+    """
+    int_list : empty
+    """
+    p[0] = Int_list([])
+    
+def p_int_list_base(p):
+    """
+    int_list : Integer
+    """
+    p[0] = Int_list([p[1].value])
+    
+def p_int_list(p):
+    """
+    int_list : int_list Coma Integer
+    """
+    p[1].add_value(p[3].value)
+    p[0] = p[1]
+    
+def p_array_init(p):
+    """
+    declaration : one_dim_array Assign LBrace int_list RBrace
+        | multi_dim_array Assign LBrace int_list RBrace
+    """
+    p[1].set_init(p[4])
+    p[0] = p[1]
     
 def p_one_dim_array(p):
     """

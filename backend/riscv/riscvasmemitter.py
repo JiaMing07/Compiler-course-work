@@ -45,11 +45,13 @@ class RiscvAsmEmitter(AsmEmitter):
                 if not symbol.is_array:
                     self.printer.println(f".globl {name}")
                     self.printer.println(f"{name}:")
-                    self.printer.println(f"    .word {symbol.initValue}")
+                    self.printer.println(f"    .word {symbol.initValue[0]}")
                 else:
                     self.printer.println(f".globl {name}")
                     self.printer.println(f"{name}:")
-                    self.printer.println(f"    .zero {4 * prod(symbol.dims)}")
+                    for val in symbol.initValue:
+                        self.printer.println(f"    .word {val}")
+                    self.printer.println(f"    .zero {4 * (prod(symbol.dims) - len(symbol.initValue))}")
         
         self.printer.println(".text")
         self.printer.println(".global main")

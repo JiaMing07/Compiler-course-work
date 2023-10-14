@@ -174,7 +174,7 @@ class Riscv:
             self.argument_list = argument_list
             
         def __str__(self) -> str:
-            return f"call {str(self.func)}"
+            return f"call {str(self.func.name)}"
     
 
     class SPAdd(NativeInstr):
