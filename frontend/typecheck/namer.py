@@ -97,8 +97,8 @@ class Namer(Visitor[Scope, None]):
         """
         sym = ctx.lookup(decl.ident.value)
         if sym != None:
-            decl.accept(self, ctx)
-            
+            # decl.accept(self, ctx)
+            raise DecafDeclConflictError(decl.ident.value)
         else:
             new_varsymbol = VarSymbol(decl.ident.value, decl.var_t.type)
             ctx.declare(new_varsymbol)
