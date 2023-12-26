@@ -248,7 +248,7 @@ class SaveWord(TACInstr):
         self.offset = offset
         
     def __str__(self) -> str:
-        return f"{self.dsts[0]} =  SAVE {self.srcs[0]}, {self.offset}"
+        return f"SAVE {self.dsts[0]}, {self.offset}({self.srcs[0]})"
     
     def accept(self, v: TACVisitor) -> None:
         v.visitSaveWord(self)

@@ -192,7 +192,9 @@ class TACGen(Visitor[TACFuncEmitter, None]):
             for param in astFunc.params:
                 param.accept(self, emitter)
                 temp = param.getattr("symbol").temp
+                # print(param.ident.value, temp)
                 param_list.append(temp)
+            # print(param_list)
             astFunc.body.accept(self, emitter)
             tacFuncs.append(emitter.visitEnd(param_list))
         return TACProg(tacFuncs)
