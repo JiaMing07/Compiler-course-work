@@ -16,6 +16,8 @@ from utils.tac.tacprog import TACProg
 from utils.tac.tacvisitor import TACVisitor
 
 
+def_dic = {}
+
 """
 The TAC generation phase: translate the abstract syntax tree into three-address code.
 """
@@ -98,7 +100,7 @@ class TACFuncEmitter(TACVisitor):
     def visitCondBranch(self, op: CondBranchOp, cond: Temp, target: Label) -> None:
         self.func.add(CondBranch(op, cond, target))
 
-    def visitReturn(self, value: Optional[Temp]) -> None:
+    def visitReturn(self, value: Optional[Temp], ident = None) -> None:
         self.func.add(Return(value))
 
     def visitLabel(self, label: Label) -> None:
@@ -116,11 +118,11 @@ class TACFuncEmitter(TACVisitor):
     def visitRaw(self, instr: TACInstr) -> None:
         self.func.add(instr)
         
-    def visitLoadWord(self, dst:Temp, src: Temp, offset:int) -> None:
-        self.func.add(LoadWord(dst, src, offset))
+    def visitLoadWord(self, dst:Temp, src: Temp, offset:int, ident: Identifier = None) -> None:
+        self.func.add(LoadWord(dst, src, offset, ident))
         
-    def visitSaveWord(self, dst:Temp, src: Temp, offset:int) -> None:
-        self.func.add(SaveWord(dst, src, offset))
+    def visitSaveWord(self, dst:Temp, src: Temp, offset:int, ident: Identifier = None) -> None:
+        self.func.add(SaveWord(dst, src, offset, ident))
         
     def visitLoadSymbol(self, dst: Temp, global_symbol: VarSymbol) -> None:
         self.func.add(LoadSymbol(dst, global_symbol))
@@ -131,8 +133,8 @@ class TACFuncEmitter(TACVisitor):
         self.func.add(Binary(TacBinaryOp.MUL, size_temp, size_temp, src))
         self.func.add(Binary(TacBinaryOp.ADD, dst, dst, size_temp))
         
-    def visitAlloc(self, dst: Temp, size: int) -> None:
-        self.func.add(Alloc(dst, size))
+    def visitAlloc(self, dst: Temp, size: int, ident: Identifier = None):
+        self.func.add(Alloc(dst, size, ident))
 
     def visitEnd(self, param_list: list[Temp]) -> TACFunc:
         if (len(self.func.instrSeq) == 0) or (not self.func.instrSeq[-1].isReturn()):
@@ -184,7 +186,7 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         
         # for glob_name, glob_var in program.globals().items():
             
-        
+        temps_num = []
         for funcName, astFunc in program.functions().items():
             # in step9, you need to use real parameter count
             emitter = TACFuncEmitter(FuncLabel(funcName), len(astFunc.params), labelManager)
@@ -197,7 +199,8 @@ class TACGen(Visitor[TACFuncEmitter, None]):
             # print(param_list)
             astFunc.body.accept(self, emitter)
             tacFuncs.append(emitter.visitEnd(param_list))
-        return TACProg(tacFuncs)
+            temps_num.append(emitter.nextTempId)
+        return TACProg(tacFuncs), temps_num, emitter.labelManager.nextTempLabelId
 
     def visitBlock(self, block: Block, mv: TACFuncEmitter) -> None:
         for child in block:
@@ -205,7 +208,12 @@ class TACGen(Visitor[TACFuncEmitter, None]):
 
     def visitReturn(self, stmt: Return, mv: TACFuncEmitter) -> None:
         stmt.expr.accept(self, mv)
-        mv.visitReturn(stmt.expr.getattr("val"))
+        val = stmt.expr.getattr("val")
+        if isinstance(stmt.expr, Identifier):
+            temp = mv.freshTemp()
+            mv.visitLoadWord(temp, stmt.expr.getattr('address'), 0, stmt.expr)
+            val = temp
+        mv.visitReturn(val)
 
     def visitBreak(self, stmt: Break, mv: TACFuncEmitter) -> None:
         mv.visitBranch(mv.getBreakLabel())
@@ -234,8 +242,9 @@ class TACGen(Visitor[TACFuncEmitter, None]):
                 ident.setattr('val', address)
         else:
         # print(ident.value,ident.getattr('symbol'))
+            # print("ident", ident.value, ident.getattr("address"))
             temp = ident.getattr('symbol').temp
-            ident.setattr('val', temp)
+            ident.setattr('address', temp)
         # raise NotImplementedError
 
     def visitDeclaration(self, decl: Declaration, mv: TACFuncEmitter) -> None:
@@ -244,10 +253,14 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         2. Use mv.freshTemp to get a new temp variable for this symbol.
         3. If the declaration has an initial value, use mv.visitAssignment to set it.
         """
+        # print(decl.ident.value)
         symbol = decl.getattr("symbol")
         symbol.temp = mv.freshTemp()
         # print("decl", symbol, decl.ident.value)
+        decl.setattr("address", symbol.temp)
         decl.setattr("symbol", symbol)
+        decl.ident.setattr("address", symbol.temp)
+        # print(decl.ident, decl.ident.getattr("address"))
         if decl.is_array:
             mv.visitAlloc(symbol.temp, symbol.type.size)
             if decl.init_expr is not NULL:
@@ -256,9 +269,16 @@ class TACGen(Visitor[TACFuncEmitter, None]):
                     val_temp = mv.visitLoad(int(val))
                     mv.visitSaveWord(val_temp, symbol.temp, i * 4)
         else:    
+            mv.visitAlloc(symbol.temp, 4, decl.ident)
             if decl.init_expr is not NULL:
                 decl.init_expr.accept(self, mv)
-                mv.visitAssignment(decl.getattr("symbol").temp, decl.init_expr.getattr('val'))
+                if isinstance(decl.init_expr, Identifier):
+                    temp = mv.freshTemp()
+                    mv.visitLoadWord(temp, decl.init_expr.getattr('address'), 0, decl.init_expr)
+                    mv.visitSaveWord(temp, decl.getattr("address"), 0, decl.ident)
+                else:
+                    mv.visitSaveWord(decl.init_expr.getattr('val'), decl.getattr("address"), 0, decl.ident)
+                # mv.visitAssignment(decl.getattr("symbol").temp, decl.init_expr.getattr('val'))
 
         # raise NotImplementedError
     def visitParameter(self, param: Parameter, mv: TACFuncEmitter) -> None:
@@ -284,6 +304,8 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         val = expr.rhs.getattr("val")
         expr.lhs.accept(self, mv)
         lhs_sym = expr.lhs.getattr("symbol")
+        lhs_address = expr.lhs.getattr("address")
+        # print("lhs_address", lhs_address, type(expr.lhs), expr.lhs.getattr("val"))
         # print(expr.lhs, lhs_sym, type(expr.lhs))
         if lhs_sym.isGlobal:
             address = mv.freshTemp()
@@ -291,7 +313,7 @@ class TACGen(Visitor[TACFuncEmitter, None]):
                 mv.visitLoadSymbol(address, lhs_sym)
                 temp = mv.freshTemp()
                 mv.visitAssignment(temp, expr.rhs.getattr('val'))
-                mv.visitSaveWord(temp, address, 0)
+                mv.visitSaveWord(temp, address, 0, expr.lhs)
                 lhs_sym.temp = temp
                 expr.lhs.setattr('symbol', lhs_sym)
                 expr.lhs.setattr('val', lhs_sym.temp)
@@ -327,8 +349,16 @@ class TACGen(Visitor[TACFuncEmitter, None]):
                 expr.setattr('val', val)
             else:
                 temp = expr.lhs.getattr('symbol').temp
-                mv.visitAssignment(temp, expr.rhs.getattr('val'))
-                expr.setattr('val', expr.rhs.getattr('val'))
+                if isinstance(expr.rhs, Identifier):
+                    rhs_temp = mv.freshTemp()
+                    mv.visitLoadWord(rhs_temp, expr.rhs.getattr("address"), 0, expr.rhs)
+                    mv.visitSaveWord(rhs_temp, lhs_address, 0, expr.lhs)
+                    expr.setattr('val', expr.rhs.getattr('val'))
+                else:
+                    mv.visitSaveWord(expr.rhs.getattr('val'), lhs_address, 0, expr.lhs)
+                    expr.setattr('val', expr.rhs.getattr('val'))
+                # mv.visitAssignment(temp, expr.rhs.getattr('val'))
+                # expr.setattr('val', expr.rhs.getattr('val'))
         # raise NotImplementedError
 
     def visitIf(self, stmt: If, mv: TACFuncEmitter) -> None:
@@ -418,7 +448,11 @@ class TACGen(Visitor[TACFuncEmitter, None]):
             node.UnaryOp.BitNot: tacop.TacUnaryOp.BitNot,
             node.UnaryOp.LogicNot: tacop.TacUnaryOp.LogicNot,
         }[expr.op]
-        expr.setattr("val", mv.visitUnary(op, expr.operand.getattr("val")))
+        operand_temp = expr.operand.getattr("val")
+        if isinstance(expr.operand, Identifier):
+            operand_temp = mv.freshTemp()
+            mv.visitLoadWord(operand_temp, expr.operand.getattr("address"), 0, expr.operand)
+        expr.setattr("val", mv.visitUnary(op, operand_temp))
 
     def visitBinary(self, expr: Binary, mv: TACFuncEmitter) -> None:
         expr.lhs.accept(self, mv)
@@ -444,8 +478,18 @@ class TACGen(Visitor[TACFuncEmitter, None]):
             node.BinaryOp.GE: tacop.TacBinaryOp.GEQ,
             # You can add binary operations here.
         }[expr.op]
+        lhs_temp = expr.lhs.getattr("val")
+        rhs_temp = expr.rhs.getattr("val")
+        # print("binary", type(expr.lhs), type(expr.rhs))
+        if isinstance(expr.lhs, Identifier):
+            # print("ident")
+            lhs_temp = mv.freshTemp()
+            mv.visitLoadWord(lhs_temp, expr.lhs.getattr("address"), 0, expr.lhs)
+        if isinstance(expr.rhs, Identifier):
+            rhs_temp = mv.freshTemp()
+            mv.visitLoadWord(rhs_temp, expr.rhs.getattr("address"), 0, expr.rhs)
         expr.setattr(
-            "val", mv.visitBinary(op, expr.lhs.getattr("val"), expr.rhs.getattr("val"))
+            "val", mv.visitBinary(op, lhs_temp, rhs_temp)
         )
 
     def visitCondExpr(self, expr: ConditionExpression, mv: TACFuncEmitter) -> None:
@@ -472,6 +516,10 @@ class TACGen(Visitor[TACFuncEmitter, None]):
 
     def visitIntLiteral(self, expr: IntLiteral, mv: TACFuncEmitter) -> None:
         expr.setattr("val", mv.visitLoad(expr.value))
+        # address = mv.freshTemp()
+        # mv.visitAlloc(address, 4)
+        # mv.visitSaveWord(expr.getattr("val"), address, 0)
+        # expr.setattr("address", address)
         
     def visitCall(self, call: Call, mv: TACFuncEmitter) -> None:
         arg_list = []

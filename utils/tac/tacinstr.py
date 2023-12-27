@@ -168,7 +168,7 @@ class CondBranch(TACInstr):
 
 # Return instruction.
 class Return(TACInstr):
-    def __init__(self, value: Optional[Temp]) -> None:
+    def __init__(self, value: Optional[Temp], ident = None) -> None:
         if value is None:
             super().__init__(InstrKind.RET, [], [], None)
         else:
@@ -232,23 +232,25 @@ class CALL(TACInstr):
         v.visitCall(self)
 
 class LoadWord(TACInstr):
-    def __init__(self, dst: Temp, src: Temp, offset: int) -> None:
+    def __init__(self, dst: Temp, src: Temp, offset: int, ident = None) -> None:
         super().__init__(InstrKind.SEQ, [dst], [src], None)
         self.offset = offset
+        self.ident = ident
         
     def __str__(self) -> str:
-        return f"{self.dsts[0]} =  LOAD {self.srcs[0]}, {self.offset}"
+        return f"{self.dsts[0]} =  LOAD {self.offset}({self.srcs[0]}) # for {self.ident.value}"
     
     def accept(self, v: TACVisitor) -> None:
         v.visitLoadWord(self)
         
 class SaveWord(TACInstr):
-    def __init__(self, dst: Temp, src: Temp, offset: int) -> None:
+    def __init__(self, dst: Temp, src: Temp, offset: int, ident = None) -> None:
         super().__init__(InstrKind.SEQ, [dst], [src], None)
         self.offset = offset
+        self.ident = ident
         
     def __str__(self) -> str:
-        return f"SAVE {self.dsts[0]}, {self.offset}({self.srcs[0]})"
+        return f"SAVE {self.dsts[0]}, {self.offset}({self.srcs[0]}) # for {self.ident.value}"
     
     def accept(self, v: TACVisitor) -> None:
         v.visitSaveWord(self)
@@ -265,12 +267,37 @@ class LoadSymbol(TACInstr):
         v.visitLoadSymbol(self)
         
 class Alloc(TACInstr):
-    def __init__(self, dst: Temp, size: int) -> None:
+    def __init__(self, dst: Temp, size: int, ident=None) -> None:
         super().__init__(InstrKind.SEQ, [dst], [], None)
         self.size = size
+        self.ident = ident
         
     def __str__(self) -> str:
-        return f"{self.dsts[0]} = ALLOC {self.size}"
+        return f"{self.dsts[0]} = ALLOC {self.size} # for {self.ident.value}"
     
     def accept(self, v: TACVisitor) -> None:
         return v.visitAlloc(self)
+    
+class Phi(TACInstr):
+    """
+    Phi 指令
+    """
+    def __init__(self, dst: Temp, ident) -> None:
+        super().__init__(InstrKind.SEQ, [dst], [], None)
+        self.srcs = []
+        self.labels = []
+        self.ident = ident
+    
+    def __str__(self) -> str:
+        str_phi = ""
+        for i in range(len(self.srcs)):
+            str_phi += f"({self.srcs[i]}, {self.labels[i]}), "
+        return f"{self.dsts[0]} = Phi [{str_phi[:-2]}]  # for{self.ident[1]}"
+    
+    def add_label(self,label):
+        self.labels.append(label)
+        self.srcs.append(None)
+        
+    def add_src(self, src, label):
+        idx = self.labels.index(label)
+        self.srcs[idx] = src

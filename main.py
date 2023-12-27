@@ -8,6 +8,7 @@ from frontend.ast.tree import Program
 from frontend.lexer import lexer
 from frontend.parser import parser
 from frontend.tacgen.tacgen import TACGen
+from frontend.tacgen.gen_cfg import gen_cfg
 from frontend.typecheck.namer import Namer
 from frontend.typecheck.typer import Typer
 from utils.printtree import TreePrinter
@@ -41,7 +42,7 @@ int fill_n(int a[], int n, int v) {
 }"""
     code = readCode(args.input)
     # print(code)
-    code = fill_in + code
+    # code = fill_in + code
     # print(code)
     r: Program = parser.parse(code, lexer=lexer)
 
@@ -62,7 +63,10 @@ def step_tac(p: Program):
     p = typer.transform(p)
 
     tacgen = TACGen()
-    tac_prog = tacgen.transform(p)
+    tac_prog, temps_num, label_id = tacgen.transform(p)
+    riscvAsmEmitter = RiscvAsmEmitter(Riscv.AllocatableRegs, Riscv.CallerSaved)
+    asm = gen_cfg(riscvAsmEmitter, BruteRegAlloc(riscvAsmEmitter))
+    asm.transform(tac_prog, temps_num, label_id)
 
     return tac_prog
 
