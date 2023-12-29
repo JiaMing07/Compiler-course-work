@@ -1,0 +1,39 @@
+-------------------
+FUNCTION<main>:
+_L3:
+    _T1 = 1
+    _T3 = 1
+    _T4 = 0
+    _T6 = (_T3 > _T4)
+    if (_T6 == 0) branch _L1
+_L4:
+    _T7 = 1
+    branch _L2
+_L1:
+    _T8 = 1
+    _T9 = - _T8
+_L2:
+    _T11 = Phi [(_T7, _L4), (_T9, _L1)]  # for x
+    return _T11
+-------------------
+FUNCTION<main>:
+    _T0 = ALLOC 4 # for x
+    _T1 = 1
+    SAVE _T1, 0(_T0) # for x
+    _T2 = ALLOC 4 # for cond
+    _T3 = 1
+    SAVE _T3, 0(_T2) # for cond
+    _T4 = 0
+    _T3 =  LOAD 0(_T2) # for cond
+    _T6 = (_T3 > _T4)
+    if (_T6 == 0) branch _L1
+    _T7 = 1
+    SAVE _T7, 0(_T0) # for x
+    branch _L2
+_L1:
+    _T8 = 1
+    _T9 = - _T8
+    SAVE _T9, 0(_T0) # for x
+_L2:
+    _T11 =  LOAD 0(_T0) # for x
+    return _T11

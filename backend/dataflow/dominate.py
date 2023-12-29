@@ -105,7 +105,7 @@ class Dominate:
         for (u, v) in self.tree_edges:
             self.tree_links[u][1].add(v)
             self.tree_links[v][0].add(u)
-        print("tree links:",self.tree_links)
+        # print("tree links:",self.tree_links)
         
         for i, dom in enumerate(self.dominates):
             dom.add(i)
@@ -180,61 +180,6 @@ class Dominate:
                 break
         return_value = None   
         self.search(0, self.nodes[0], stack, counters) 
-        # for idx_block, node in enumerate(self.nodes):
-            
-            # remove_index = []
-            # for idx, l in enumerate(node.locs):
-            #     # print("type: ", l.instr, idx)
-            #     if isinstance(l.instr, Alloc) and l.instr.ident is not None:
-            #         remove_index.append(l)
-            #     elif isinstance(l.instr, LoadWord) and l.instr.ident is not None:
-            #         dst = l.instr.dsts[0]
-            #         key = (l.instr.ident.getattr("address"), l.instr.ident.value)
-            #         # node.locs.remove(l)
-            #         for i in range(idx + 1, len(node.locs)):
-            #             for src_idx, src in enumerate(node.locs[i].instr.srcs):
-            #                 if src == dst:
-            #                     # print("src1:", node.locs[i].instr, dst.index, node.locs[i].instr.srcs[src_idx].index)
-            #                     node.locs[i].instr.srcs[src_idx].index = stack[key][-1].index
-            #                     # print("src2:", node.locs[i].instr, dst.index, "stack:", stack[key][-1])
-            #         remove_index.append(l)
-            #     elif isinstance(l.instr, SaveWord) and l.instr.ident is not None:
-            #         key = (l.instr.ident.getattr("address"), l.instr.ident.value)
-            #         # temp = Temp(counters)
-            #         # print(l.instr.dsts[0])
-            #         counters += 1
-            #         stack[key].append(l.instr.dsts[0])
-            #         # node.locs.remove(l)
-            #         remove_index.append(l)
-            #     elif isinstance(l.instr, Phi):
-            #         # print("phi", l.instr.dsts[0].index)
-            #         key = l.instr.ident
-            #         stack[key].append(l.instr.dsts[0])
-            #         dst = l.instr.dsts[0]
-            #         for i in range(idx + 1, len(node.locs)):
-            #             for src_idx, src in enumerate(node.locs[i].instr.srcs):
-            #                 if src == dst:
-            #                     # print("src1:", node.locs[i].instr, dst.index, node.locs[i].instr.srcs[src_idx].index)
-            #                     node.locs[i].instr.srcs[src_idx].index = stack[key][-1].index
-            #                     # print("src2:", node.locs[i].instr, dst.index, "stack:", stack[key][-1])
-            #     elif isinstance(l.instr,Return):
-            #         if return_value is not None:
-            #             # print("return change", return_value)
-            #             l.instr.value = return_value
-            # for remove_idx in remove_index:
-            #     node.locs.remove(remove_idx)
-            # for var in self.var_dict.keys():
-            #     for succ in self.links[idx_block][1]:
-            #         for idx_l, l in enumerate(self.nodes[succ].locs):
-            #             if isinstance(l.instr, Phi) and l.instr.ident == var:
-            #                 label = node.label
-            #                 l.instr.add_label(label)
-            #                 l.instr.add_src(stack[var][-1], label)
-            # if return_idom is not None:
-            #     if idx_block == return_idom:
-            #         # print("key", key, return_key[1])
-            #         # print("stack[return_key]:", stack[return_key][-1].index)
-            #         return_value = stack[return_key][-1]
                             
                     
         print("-------------------")
@@ -303,13 +248,13 @@ class Dominate:
                         label = node.label
                         l.instr.add_label(label)
                         l.instr.add_src(stack[var][-1], label)
-        print(idx_block, stack_push)
-        print(idx_block,stack)
+        # print(idx_block, stack_push)
+        # print(idx_block,stack)
         for child in self.tree_links[idx_block][1]:
-            print(idx_block, child)
+            # print(idx_block, child)
             self.search(child, self.nodes[child], stack, counters)
-        print(idx_block,stack)
+        # print(idx_block,stack)
         for key in self.var_dict.keys():
             if stack_push[key] != 0:
                 stack[key] = stack[key][:-stack_push[key]]
-        print(idx_block, stack)
+        # print(idx_block, stack)

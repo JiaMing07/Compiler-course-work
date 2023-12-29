@@ -292,7 +292,7 @@ class Phi(TACInstr):
         str_phi = ""
         for i in range(len(self.srcs)):
             str_phi += f"({self.srcs[i]}, {self.labels[i]}), "
-        return f"{self.dsts[0]} = Phi [{str_phi[:-2]}]  # for{self.ident[1]}"
+        return f"{self.dsts[0]} = Phi [{str_phi[:-2]}]  # for {self.ident[1]}"
     
     def add_label(self,label):
         self.labels.append(label)
