@@ -6,13 +6,15 @@ Modify this file if you want to add a new AST node.
 
 from __future__ import annotations
 
-from typing import Any, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, Optional, TypeVar, Union, List
 
 from frontend.type import INT, DecafType
 from utils import T, U
 
 from .node import NULL, BinaryOp, Node, UnaryOp
 from .visitor import Visitor, accept
+
+from utils.error import *
 
 _T = TypeVar("_T", bound=Node)
 U = TypeVar("U", covariant=True)
@@ -50,11 +52,15 @@ class Program(ListNode["Function"]):
     AST root. It should have only one children before step9.
     """
 
-    def __init__(self, *children: Function) -> None:
-        super().__init__("program", list(children))
+    def __init__(self, children: List[Function]) -> None:
+        super().__init__("program", children)
 
     def functions(self) -> dict[str, Function]:
-        return {func.ident.value: func for func in self if isinstance(func, Function)}
+        ident_list = [func.ident.value for func in self if isinstance(func, Function)]
+        functions_dict = {func.ident.value: func for func in self.children if isinstance(func, Function)}
+        if len(ident_list) != len(functions_dict):
+            raise DecafDeclConflictError("functions")
+        return {func.ident.value: func for func in self.children if isinstance(func, Function)}
 
     def hasMainFunc(self) -> bool:
         return "main" in self.functions()
@@ -76,21 +82,24 @@ class Function(Node):
         ret_t: TypeLiteral,
         ident: Identifier,
         body: Block,
+        params: List[Parameter],
     ) -> None:
         super().__init__("function")
         self.ret_t = ret_t
         self.ident = ident
         self.body = body
+        self.params = params
 
     def __getitem__(self, key: int) -> Node:
         return (
             self.ret_t,
             self.ident,
             self.body,
+            self.params
         )[key]
 
     def __len__(self) -> int:
-        return 3
+        return 4
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitFunction(self, ctx)
@@ -292,6 +301,31 @@ class Declaration(Node):
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitDeclaration(self, ctx)
+    
+class Parameter(Declaration):
+    """
+    AST node of declaration.
+    """
+
+    def __init__(
+        self,
+        var_t: TypeLiteral,
+        ident: Identifier,
+        init_expr: Optional[Expression] = None,
+    ) -> None:
+        super().__init__(self, var_t, ident)
+        self.var_t = var_t
+        self.ident = ident
+        self.init_expr = init_expr or NULL
+
+    def __getitem__(self, key: int) -> Node:
+        return (self.var_t, self.ident)[key]
+
+    def __len__(self) -> int:
+        return 2
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitParameter(self, ctx)
 
 
 class Expression(Node):
@@ -303,6 +337,30 @@ class Expression(Node):
         super().__init__(name)
         self.type: Optional[DecafType] = None
 
+class Call(Expression):
+    """
+    AST node of call expression.
+    """
+
+    def __init__(self, ident: Identifier, argument_list: List[Expression]) -> None:
+        super().__init__("call")
+        self.ident = ident
+        self.argument_list = argument_list
+
+    def __getitem__(self, key: int) -> Node:
+        return (self.ident, self.argument_list)[key]
+
+    def __len__(self) -> int:
+        return 2
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitCall(self, ctx)
+
+    def __str__(self) -> str:
+        return "{}({})".format(
+            self.ident.value,
+            self.argument_list,
+        )
 
 class Unary(Expression):
     """
@@ -438,12 +496,13 @@ class IntLiteral(Expression):
     def __init__(self, value: Union[int, str]) -> None:
         super().__init__("int_literal")
         self.value = int(value)
+        self.type = INT
 
     def __getitem__(self, key: int) -> Node:
         raise _index_len_err(key, self)
 
-    def __len__(self) -> int:
-        return 0
+    def __len__(self, key: int):
+        return (self.lhs, self.rhs)[key]
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitIntLiteral(self, ctx)

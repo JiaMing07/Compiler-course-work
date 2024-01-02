@@ -102,6 +102,12 @@ class TACFuncEmitter(TACVisitor):
 
     def visitLabel(self, label: Label) -> None:
         self.func.add(Mark(label))
+        
+    def visitParam(self, par: Temp) -> None:
+        self.func.add(Param(par))
+        
+    def visitCall(self, dst: Temp,func: Label, argument_list:List[Temp]) -> None:
+        self.func.add(CALL(dst, func, argument_list))
 
     def visitMemo(self, content: str) -> None:
         self.func.add(Memo(content))
@@ -109,10 +115,11 @@ class TACFuncEmitter(TACVisitor):
     def visitRaw(self, instr: TACInstr) -> None:
         self.func.add(instr)
 
-    def visitEnd(self) -> TACFunc:
+    def visitEnd(self, param_list: list[Temp]) -> TACFunc:
         if (len(self.func.instrSeq) == 0) or (not self.func.instrSeq[-1].isReturn()):
             self.func.add(Return(None))
         self.func.tempUsed = self.getUsedTemp()
+        self.func.set_parameters(param_list)
         return self.func
 
     # To open a new loop (for break/continue statements)
@@ -145,9 +152,14 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         tacFuncs = []
         for funcName, astFunc in program.functions().items():
             # in step9, you need to use real parameter count
-            emitter = TACFuncEmitter(FuncLabel(funcName), 0, labelManager)
+            emitter = TACFuncEmitter(FuncLabel(funcName), len(astFunc.params), labelManager)
+            param_list = []
+            for param in astFunc.params:
+                param.accept(self, emitter)
+                temp = param.getattr("symbol").temp
+                param_list.append(temp)
             astFunc.body.accept(self, emitter)
-            tacFuncs.append(emitter.visitEnd())
+            tacFuncs.append(emitter.visitEnd(param_list))
         return TACProg(tacFuncs)
 
     def visitBlock(self, block: Block, mv: TACFuncEmitter) -> None:
@@ -186,6 +198,18 @@ class TACGen(Visitor[TACFuncEmitter, None]):
             mv.visitAssignment(decl.getattr("symbol").temp, decl.init_expr.getattr('val'))
 
         # raise NotImplementedError
+    def visitParameter(self, param: Parameter, mv: TACFuncEmitter) -> None:
+        """
+        1. Get the 'symbol' attribute of decl.
+        2. Use mv.freshTemp to get a new temp variable for this symbol.
+        3. If the declaration has an initial value, use mv.visitAssignment to set it.
+        """
+        symbol = param.getattr("symbol")
+        symbol.temp = mv.freshTemp()
+        param.setattr("symbol", symbol)
+        if param.init_expr is not NULL:
+            param.init_expr.accept(self, mv)
+            mv.visitAssignment(param.getattr("symbol").temp, param.init_expr.getattr('val'))
 
     def visitAssignment(self, expr: Assignment, mv: TACFuncEmitter) -> None:
         """
@@ -320,7 +344,6 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         """
         1. Refer to the implementation of visitIf and visitBinary.
         """
-        # print(expr.cond, expr.then, expr.otherwise)
         expr.cond.accept(self, mv)
         skipLabel = mv.freshLabel()
         exitLabel = mv.freshLabel()
@@ -341,3 +364,17 @@ class TACGen(Visitor[TACFuncEmitter, None]):
 
     def visitIntLiteral(self, expr: IntLiteral, mv: TACFuncEmitter) -> None:
         expr.setattr("val", mv.visitLoad(expr.value))
+        
+    def visitCall(self, call: Call, mv: TACFuncEmitter) -> None:
+        arg_list = []
+        for arg in call.argument_list:
+            arg.accept(self, mv)
+            arg_list.append(arg.getattr("val"))
+            # print(arg.getattr("val"), type(arg.getattr("val")))
+        for arg in call.argument_list:
+            val = arg.getattr("val")
+            mv.visitParam(val)
+        dst = mv.freshTemp()
+        mv.visitCall(dst, call.ident.value, arg_list)
+        call.setattr("val", dst)
+        

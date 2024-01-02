@@ -39,9 +39,23 @@ def p_empty(p: yacc.YaccProduction):
     pass
 
 
+def p_program_base_function(p):
+    """
+    functions : function
+    """
+    p[0] = [p[1]]
+
+def p_program_function(p):
+    """
+    functions : functions function
+    """
+    # print(p[1])
+    p[1].append(p[2])
+    p[0] = p[1]
+    
 def p_program(p):
     """
-    program : function
+    program : functions
     """
     p[0] = Program(p[1])
 
@@ -51,14 +65,104 @@ def p_type(p):
     type : Int
     """
     p[0] = TInt()
+    
+def p_parameter(p):
+    """
+    parameter : type Identifier
+    """
+    p[0] = Parameter(p[1], p[2])
+    
+def p_parameter_list_base(p):
+    """
+    parameter_list_base : type Identifier Coma
+    """
+    p[0] = Parameter(p[1], p[2])
+    
+    
+def p_parameter_list_prefix_first(p):
+    """
+    parameter_list_prefix : parameter_list_base
+    """
+    p[0] = [p[1]]
+    
+def p_parameter_list_prefix(p):
+    """
+    parameter_list_prefix : parameter_list_prefix parameter_list_base
+    """
+    p[1].append(p[2])
+    p[0] = p[1]
+    
+def p_parameter_list(p):
+    """
+    parameter_list : parameter_list_prefix parameter
+    """
+    p[1].append(p[2])
+    p[0] = p[1]
 
 
-def p_function_def(p):
+def p_function_def_multi(p):
+    """
+    function : type Identifier LParen parameter_list RParen LBrace block RBrace
+    """
+    p[0] = Function(p[1], p[2], p[7], p[4])
+    
+def p_function_def_one(p):
+    """
+    function : type Identifier LParen parameter RParen LBrace block RBrace
+    """
+    p[0] = Function(p[1], p[2], p[7], [p[4]])
+    
+def p_function_def_no(p):
     """
     function : type Identifier LParen RParen LBrace block RBrace
     """
-    p[0] = Function(p[1], p[2], p[6])
+    p[0] = Function(p[1], p[2], p[6], [])
+    
+def p_expression_list_base(p):
+    """
+    expression_list_base : expression Coma
+    """
+    p[0] = p[1]
+    
+    
+def p_expression_list_prefix_first(p):
+    """
+    expression_list_prefix : expression_list_base
+    """
+    p[0] = [p[1]]
+    
+    
+def p_expression_list_prefix(p):
+    """
+    expression_list_prefix : expression_list_prefix expression_list_base
+    """
+    p[1].append(p[2])
+    p[0] = p[1]
+    
+def p_expression_list(p):
+    """
+    expression_list : expression_list_prefix expression
+    """
+    p[1].append(p[2])
+    p[0] = p[1]
 
+def p_call_multi(p):
+    """
+    call : Identifier LParen expression_list RParen
+    """
+    p[0] = Call(p[1], p[3])
+    
+def p_call_one(p):
+    """
+    call : Identifier LParen expression RParen
+    """
+    p[0] = Call(p[1], [p[3]])
+    
+def p_call_no(p):
+    """
+    call : Identifier LParen RParen
+    """
+    p[0] = Call(p[1], [])
 
 def p_block(p):
     """
@@ -212,6 +316,7 @@ def p_expression_precedence(p):
     multiplicative : unary
     unary : postfix
     postfix : primary
+        | call
     """
     p[0] = p[1]
 
