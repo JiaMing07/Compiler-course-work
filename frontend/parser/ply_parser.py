@@ -38,10 +38,44 @@ def p_empty(p: yacc.YaccProduction):
     """
     pass
 
+def p_union(p):
+    """
+    union : function
+        | declaration Semi
+    """
+    p[0] = p[1]
+    
+def p_program_union_base(p):
+    """
+    unions : union
+    """
+    p[0] = [p[1]]
+    
+def p_program_unions(p):
+    """
+    unions : unions union
+    """
+    p[1].append(p[2])
+    p[0] = p[1]
 
+
+def p_program_base_function(p):
+    """
+    functions : function
+    """
+    p[0] = [p[1]]
+
+def p_program_function(p):
+    """
+    functions : functions function
+    """
+    # print(p[1])
+    p[1].append(p[2])
+    p[0] = p[1]
+    
 def p_program(p):
     """
-    program : function
+    program : unions
     """
     p[0] = Program(p[1])
 
@@ -51,14 +85,141 @@ def p_type(p):
     type : Int
     """
     p[0] = TInt()
+    
+def p_parameter(p):
+    """
+    parameter_int : type Identifier
+    """
+    p[0] = Parameter(p[1], p[2])
+
+def p_parameter_array_empty(p):
+    """
+    parameter_empty_dim : parameter_int LBracklet empty RBracklet
+    """
+    p[1].dims = [0]
+    p[1].var_t = TArray(p[1].var_t.type, p[1].dims)
+    p[1].is_array = True
+    p[0] = p[1]
+    
+def p_parameter_array_one_dim(p):
+    """
+    parameter_one_dim : parameter_int LBracklet Integer RBracklet
+    """
+    p[1].dims = [p[3].value]
+    p[1].var_t = TArray(p[1].var_t.type, p[1].dims)
+    p[1].is_array = True
+    p[0] = p[1]
+    
+def p_array_parameter_multi(p):
+    """
+    parameter_multi_dim : parameter_one_dim LBracklet Integer RBracklet
+        | parameter_empty_dim LBracklet Integer RBracklet
+    """
+    p[1].expand_dims(p[3].value)
+    p[1].var_t = TArray(p[1].var_t.type.full_indexed, p[1].dims)
+    p[1].is_array = True
+    p[0] = p[1]
+
+def p_parameter_array(p):
+    """
+    parameter : parameter_empty_dim
+        | parameter_one_dim
+        | parameter_multi_dim
+        | parameter_int
+    """
+    p[0] = p[1]
+    
+def p_parameter_list_base(p):
+    """
+    parameter_list_base : parameter Coma
+    """
+    p[0] = p[1]
+    
+    
+def p_parameter_list_prefix_first(p):
+    """
+    parameter_list_prefix : parameter_list_base
+    """
+    p[0] = [p[1]]
+    
+def p_parameter_list_prefix(p):
+    """
+    parameter_list_prefix : parameter_list_prefix parameter_list_base
+    """
+    p[1].append(p[2])
+    p[0] = p[1]
+    
+def p_parameter_list(p):
+    """
+    parameter_list : parameter_list_prefix parameter
+    """
+    p[1].append(p[2])
+    p[0] = p[1]
 
 
-def p_function_def(p):
+def p_function_def_multi(p):
+    """
+    function : type Identifier LParen parameter_list RParen LBrace block RBrace
+    """
+    p[0] = Function(p[1], p[2], p[7], p[4])
+    
+def p_function_def_one(p):
+    """
+    function : type Identifier LParen parameter RParen LBrace block RBrace
+    """
+    p[0] = Function(p[1], p[2], p[7], [p[4]])
+    
+def p_function_def_no(p):
     """
     function : type Identifier LParen RParen LBrace block RBrace
     """
-    p[0] = Function(p[1], p[2], p[6])
+    p[0] = Function(p[1], p[2], p[6], [])
+    
+def p_expression_list_base(p):
+    """
+    expression_list_base : expression Coma
+    """
+    p[0] = p[1]
+    
+    
+def p_expression_list_prefix_first(p):
+    """
+    expression_list_prefix : expression_list_base
+    """
+    p[0] = [p[1]]
+    
+    
+def p_expression_list_prefix(p):
+    """
+    expression_list_prefix : expression_list_prefix expression_list_base
+    """
+    p[1].append(p[2])
+    p[0] = p[1]
+    
+def p_expression_list(p):
+    """
+    expression_list : expression_list_prefix expression
+    """
+    p[1].append(p[2])
+    p[0] = p[1]
 
+def p_call_multi(p):
+    """
+    call : Identifier LParen expression_list RParen
+    """
+    p[0] = Call(p[1], p[3])
+    
+def p_call_one(p):
+    """
+    call : Identifier LParen expression RParen
+    """
+    p[0] = Call(p[1], [p[3]])
+    
+def p_call_no(p):
+    """
+    call : Identifier LParen RParen
+    """
+    p[0] = Call(p[1], [])
 
 def p_block(p):
     """
@@ -119,7 +280,7 @@ def p_dowhile(p):
     statement_matched : Do statement_matched While LParen expression RParen Semi
     statement_unmatched : Do statement_unmatched While LParen expression RParen Semi
     """
-    p[0] = DoWhile(p[7], p[2])
+    p[0] = DoWhile(p[5], p[2])
     
 def p_for_init(p):
     """
@@ -212,6 +373,7 @@ def p_expression_precedence(p):
     multiplicative : unary
     unary : postfix
     postfix : primary
+        | call
     """
     p[0] = p[1]
 
@@ -227,7 +389,7 @@ def p_unary_expression(p):
 
 def p_binary_expression(p):
     """
-    assignment : Identifier Assign expression
+    assignment : unary Assign expression
     logical_or : logical_or Or logical_and
     logical_and : logical_and And bit_or
     bit_or : bit_or BitOr xor
@@ -274,7 +436,76 @@ def p_brace_expression(p):
     primary : LParen expression RParen
     """
     p[0] = p[2]
-
+    
+def p_int_list_empty(p):
+    """
+    int_list : empty
+    """
+    p[0] = Int_list([])
+    
+def p_int_list_base(p):
+    """
+    int_list : Integer
+    """
+    p[0] = Int_list([p[1].value])
+    
+def p_int_list(p):
+    """
+    int_list : int_list Coma Integer
+    """
+    p[1].add_value(p[3].value)
+    p[0] = p[1]
+    
+def p_array_init(p):
+    """
+    declaration : one_dim_array Assign LBrace int_list RBrace
+        | multi_dim_array Assign LBrace int_list RBrace
+    """
+    p[1].set_init(p[4])
+    p[0] = p[1]
+    
+def p_one_dim_array(p):
+    """
+    one_dim_array : type Identifier LBracklet Integer RBracklet
+    """
+    p[0] = Declaration(TArray(p[1].type, [p[4].value]), p[2], NULL,True, [p[4].value])
+    
+def p_multi_dim_array(p):
+    """
+    multi_dim_array : one_dim_array LBracklet Integer RBracklet
+        | multi_dim_array LBracklet Integer RBracklet
+    """
+    p[1].dims.append(p[3].value)
+    p[1].var_t = TArray(p[1].var_t.type.full_indexed, p[1].dims)
+    p[0] = p[1]
+    
+def p_array_declaration(p):
+    """
+    declaration : one_dim_array
+        | multi_dim_array
+    """
+    p[0] = p[1]
+    
+def p_one_dim_postfix(p):
+    """
+    one_dim_postfix : Identifier LBracklet expression RBracklet
+    """
+    p[0] = ArrayElement(p[1], [p[3]])
+    
+def p_multi_dim_postfix(p):
+    """
+    multi_dim_postfix : one_dim_postfix LBracklet expression RBracklet
+        | multi_dim_postfix LBracklet expression RBracklet
+    """
+    p[1].indexes.append(p[3])
+    p[0] = p[1]
+    
+def p_array_postfix(p):
+    """
+    postfix : one_dim_postfix
+        | multi_dim_postfix
+    """
+    p[0] = p[1]
 
 def p_error(t):
     """

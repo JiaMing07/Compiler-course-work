@@ -6,13 +6,15 @@ Modify this file if you want to add a new AST node.
 
 from __future__ import annotations
 
-from typing import Any, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, Optional, TypeVar, Union, List
 
-from frontend.type import INT, DecafType
+from frontend.type import INT, DecafType, ArrayType
 from utils import T, U
 
 from .node import NULL, BinaryOp, Node, UnaryOp
 from .visitor import Visitor, accept
+
+from utils.error import *
 
 _T = TypeVar("_T", bound=Node)
 U = TypeVar("U", covariant=True)
@@ -50,12 +52,24 @@ class Program(ListNode["Function"]):
     AST root. It should have only one children before step9.
     """
 
-    def __init__(self, *children: Function) -> None:
-        super().__init__("program", list(children))
+    def __init__(self, children: List[Union[Function, Declaration]]) -> None:
+        super().__init__("program", children)
 
     def functions(self) -> dict[str, Function]:
-        return {func.ident.value: func for func in self if isinstance(func, Function)}
+        ident_list = [func.ident.value for func in self if isinstance(func, Function)]
+        functions_dict = {func.ident.value: func for func in self.children if isinstance(func, Function)}
+        if len(ident_list) != len(functions_dict):
+            raise DecafDeclConflictError("functions")
+        return {func.ident.value: func for func in self.children if isinstance(func, Function)}
 
+
+    def globals(self) -> dict[str, Declaration]:
+        ident_list = [decl.ident.value for decl in self if isinstance(decl, Declaration)]
+        decls_dict = {decl.ident.value: decl for decl in self.children if isinstance(decl, Declaration)}
+        if len(ident_list) != len(decls_dict):
+            raise DecafDeclConflictError("functions")
+        return {decl.ident.value: decl for decl in self.children if isinstance(decl, Declaration)}
+    
     def hasMainFunc(self) -> bool:
         return "main" in self.functions()
 
@@ -76,21 +90,24 @@ class Function(Node):
         ret_t: TypeLiteral,
         ident: Identifier,
         body: Block,
+        params: List[Parameter],
     ) -> None:
         super().__init__("function")
         self.ret_t = ret_t
         self.ident = ident
         self.body = body
+        self.params = params
 
     def __getitem__(self, key: int) -> Node:
         return (
             self.ret_t,
             self.ident,
             self.body,
+            self.params
         )[key]
 
     def __len__(self) -> int:
-        return 3
+        return 4
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitFunction(self, ctx)
@@ -278,11 +295,15 @@ class Declaration(Node):
         var_t: TypeLiteral,
         ident: Identifier,
         init_expr: Optional[Expression] = None,
+        is_array = False,
+        dims: list(int) = []
     ) -> None:
         super().__init__("declaration")
         self.var_t = var_t
         self.ident = ident
         self.init_expr = init_expr or NULL
+        self.is_array = is_array
+        self.dims = dims
 
     def __getitem__(self, key: int) -> Node:
         return (self.var_t, self.ident, self.init_expr)[key]
@@ -292,6 +313,42 @@ class Declaration(Node):
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitDeclaration(self, ctx)
+    
+    def set_init(self, init_expr):
+        self.init_expr = init_expr
+    
+class Parameter(Declaration):
+    """
+    AST node of declaration.
+    """
+
+    def __init__(
+        self,
+        var_t: TypeLiteral,
+        ident: Identifier,
+        init_expr: Optional[Expression] = None,
+        dims: List[int] = [],
+        is_array: bool = False
+    ) -> None:
+        super().__init__(self, var_t, ident)
+        self.var_t = var_t
+        self.ident = ident
+        self.init_expr = init_expr or NULL
+        self.dims = dims
+        self.is_array = is_array
+
+    def __getitem__(self, key: int) -> Node:
+        return (self.var_t, self.ident)[key]
+
+    def __len__(self) -> int:
+        return 2
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitParameter(self, ctx)
+    
+    def expand_dims(self, dim: int):
+        print(self.ident,dim)
+        self.dims.append(dim)
 
 
 class Expression(Node):
@@ -303,6 +360,31 @@ class Expression(Node):
         super().__init__(name)
         self.type: Optional[DecafType] = None
 
+class Call(Expression):
+    """
+    AST node of call expression.
+    """
+
+    def __init__(self, ident: Identifier, argument_list: List[Expression]) -> None:
+        super().__init__("call")
+        self.ident = ident
+        self.argument_list = argument_list
+        self.value = f"{ident.value} {argument_list}"
+
+    def __getitem__(self, key: int) -> Node:
+        return (self.ident, self.argument_list)[key]
+
+    def __len__(self) -> int:
+        return 2
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitCall(self, ctx)
+
+    def __str__(self) -> str:
+        return "{}({})".format(
+            self.ident.value,
+            self.argument_list,
+        )
 
 class Unary(Expression):
     """
@@ -314,6 +396,7 @@ class Unary(Expression):
         super().__init__(f"unary({op.value})")
         self.op = op
         self.operand = operand
+        self.value = f"{self.op} {self.operand}"
 
     def __getitem__(self, key: int) -> Node:
         return (self.operand,)[key]
@@ -342,6 +425,7 @@ class Binary(Expression):
         self.lhs = lhs
         self.op = op
         self.rhs = rhs
+        self.value = f"{self.lhs} {self.op} {self.rhs}"
 
     def __getitem__(self, key: int) -> Node:
         return (self.lhs, self.rhs)[key]
@@ -368,6 +452,7 @@ class Assignment(Binary):
 
     def __init__(self, lhs: Identifier, rhs: Expression) -> None:
         super().__init__(BinaryOp.Assign, lhs, rhs)
+        self.value = f"{lhs} = {rhs}"
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitAssignment(self, ctx)
@@ -385,6 +470,7 @@ class ConditionExpression(Expression):
         self.cond = cond
         self.then = then
         self.otherwise = otherwise
+        self.value = f"{cond} ? {then} : {otherwise}"
 
     def __getitem__(self, key: Union[int, str]) -> Node:
         if isinstance(key, int):
@@ -413,6 +499,7 @@ class Identifier(Expression):
     def __init__(self, value: str) -> None:
         super().__init__("identifier")
         self.value = value
+        # print("ident", self.value)
 
     def __getitem__(self, key: int) -> Node:
         raise _index_len_err(key, self)
@@ -438,12 +525,13 @@ class IntLiteral(Expression):
     def __init__(self, value: Union[int, str]) -> None:
         super().__init__("int_literal")
         self.value = int(value)
+        self.type = INT
 
     def __getitem__(self, key: int) -> Node:
         raise _index_len_err(key, self)
 
-    def __len__(self) -> int:
-        return 0
+    def __len__(self, key: int):
+        return (self.lhs, self.rhs)[key]
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitIntLiteral(self, ctx)
@@ -453,6 +541,9 @@ class IntLiteral(Expression):
 
     def is_leaf(self):
         return True
+    
+    def get_value_list(self):
+        return [self.value]
 
 
 class TypeLiteral(Node):
@@ -485,3 +576,68 @@ class TInt(TypeLiteral):
 
     def accept(self, v: Visitor[T, U], ctx: T):
         return v.visitTInt(self, ctx)
+    
+class TArray(TypeLiteral):
+    "AST node of type `int[]`."
+
+    def __init__(self, _type: DecafType, dims: List[int]) -> None:
+        super().__init__("type_array", ArrayType.multidim(_type, *dims))
+
+    def __getitem__(self, key: int) -> Node:
+        raise _index_len_err(key, self)
+
+    def __len__(self) -> int:
+        return 0
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitTArray(self, ctx)
+
+class ArrayElement(Expression):
+    """
+    AST node of array_element "expression".
+    """
+
+    def __init__(self, ident: Identifier, indexes: List[Expression] ) -> None:
+        super().__init__("array_element")
+        self.ident = ident
+        self.value = ident.value
+        self.indexes = indexes
+
+    def __getitem__(self, key: int) -> Node:
+        raise (self.ident, self.indexes)[key]
+
+    def __len__(self) -> int:
+        return 3
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitArrayElement(self, ctx)
+
+    def __str__(self) -> str:
+        ind = [str([i.value]) for i in self.indexes]
+        return f"array element {self.value}{''.join(ind)}"
+
+    def is_leaf(self):
+        return True
+    
+class Int_list(Expression):
+    """
+    init value of array
+    """
+    def __init__(self, values: List[int]) -> None:
+        super().__init__("int_list")
+        self.value = values
+        
+    def __getitem__(self, key: int) -> Node:
+        return self.value[key]
+
+    def __len__(self) -> int:
+        return len(self.value)
+
+    def accept(self, v: Visitor[T, U], ctx: T):
+        return v.visitIntList(self, ctx)
+    
+    def get_value_list(self):
+        return self.value
+    
+    def add_value(self, val):
+        self.value.append(val)

@@ -1,13 +1,15 @@
 from enum import Enum, auto, unique
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, List
 
 from utils.label.label import Label
 from utils.tac.nativeinstr import NativeInstr
 from utils.tac.reg import Reg
+from utils.tac.tacop import InstrKind
 
 from .tacop import *
 from .tacvisitor import TACVisitor
 from .temp import Temp
+
 
 
 class TACInstr:
@@ -203,3 +205,72 @@ class Mark(TACInstr):
 
     def accept(self, v: TACVisitor) -> None:
         v.visitMark(self)
+        
+class Param(TACInstr):
+    def __init__(self, par: Temp) -> None:
+        super().__init__(InstrKind.SEQ, [par], [], None)
+        self.par = par
+
+    def __str__(self) -> str:
+        return "PARAM %s" % (self.par)
+
+    def accept(self, v: TACVisitor) -> None:
+        v.visitParam(self)
+        
+class CALL(TACInstr):
+    def __init__(self, dst: Temp, func: Label, argument_list: List[Temp]) -> None:
+        super().__init__(InstrKind.SEQ, [dst], [], func)
+        self.dst = dst
+        self.func = func
+        self.argument_list = argument_list
+
+    def __str__(self) -> str:
+        # print("self.func", self.func)
+        return f"{self.dst} = CALL {self.func}"
+
+    def accept(self, v: TACVisitor) -> None:
+        v.visitCall(self)
+
+class LoadWord(TACInstr):
+    def __init__(self, dst: Temp, src: Temp, offset: int) -> None:
+        super().__init__(InstrKind.SEQ, [dst], [src], None)
+        self.offset = offset
+        
+    def __str__(self) -> str:
+        return f"{self.dsts[0]} =  LOAD {self.srcs[0]}, {self.offset}"
+    
+    def accept(self, v: TACVisitor) -> None:
+        v.visitLoadWord(self)
+        
+class SaveWord(TACInstr):
+    def __init__(self, dst: Temp, src: Temp, offset: int) -> None:
+        super().__init__(InstrKind.SEQ, [dst], [src], None)
+        self.offset = offset
+        
+    def __str__(self) -> str:
+        return f"SAVE {self.dsts[0]}, {self.offset}({self.srcs[0]})"
+    
+    def accept(self, v: TACVisitor) -> None:
+        v.visitSaveWord(self)
+        
+class LoadSymbol(TACInstr):
+    def __init__(self, dst: Temp, global_symbol) -> None:
+        super().__init__(InstrKind.SEQ, [dst], [], None)
+        self.global_symbol = global_symbol
+        
+    def __str__(self) -> str:
+        return f"{self.dsts[0]} =  LOAD_SYMBOL {self.global_symbol.name}"
+    
+    def accept(self, v: TACVisitor) -> None:
+        v.visitLoadSymbol(self)
+        
+class Alloc(TACInstr):
+    def __init__(self, dst: Temp, size: int) -> None:
+        super().__init__(InstrKind.SEQ, [dst], [], None)
+        self.size = size
+        
+    def __str__(self) -> str:
+        return f"{self.dsts[0]} = ALLOC {self.size}"
+    
+    def accept(self, v: TACVisitor) -> None:
+        return v.visitAlloc(self)

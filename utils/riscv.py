@@ -1,4 +1,4 @@
-from typing import Final, Optional
+from typing import Final, Optional, List
 
 from utils.label.funclabel import FuncLabel
 from utils.label.label import Label, LabelKind
@@ -158,6 +158,24 @@ class Riscv:
         
         def __str__(self) -> str:
             return "j " + str(self.target)
+        
+    class Param(TACInstr):
+        def __init__(self, src: Temp) -> None:
+            super().__init__(InstrKind.SEQ, [], [src], None)
+            self.src = src
+        
+        def __str__(self) -> str:
+            return f""
+        
+    class Call(TACInstr):
+        def __init__(self, dst: Temp, func: Label, argument_list: List[Temp]) -> None:
+            super().__init__(InstrKind.SEQ, [dst], argument_list, None)
+            self.func = func
+            self.argument_list = argument_list
+            
+        def __str__(self) -> str:
+            return f"call {str(self.func.name)}"
+    
 
     class SPAdd(NativeInstr):
         def __init__(self, offset: int) -> None:
@@ -168,6 +186,47 @@ class Riscv:
             assert -2048 <= self.offset <= 2047  # Riscv imm [11:0]
             return "addi " + Riscv.FMT3.format(
                 str(Riscv.SP), str(Riscv.SP), str(self.offset)
+            )
+            
+    class AllocOnStack(NativeInstr):
+        def __init__(self, dst:Temp,offset: int) -> None:
+            super().__init__(InstrKind.SEQ, [dst], [Riscv.SP], None)
+            self.offset = offset
+
+        def __str__(self) -> str:
+            assert -2048 <= self.offset <= 2047  # Riscv imm [11:0]
+            return "addi " + Riscv.FMT3.format(
+                str(self.dsts[0]), str(Riscv.SP), str(self.offset)
+            )
+            
+    class LoadSymbol(TACInstr):
+        def __init__(self, dst: Temp, symbol) -> None:
+            super().__init__(InstrKind.SEQ, [dst], [], None)
+            self.symbol = symbol
+            
+        def __str__(self) -> str:
+            return f"la {self.dsts[0]}, {self.symbol.name}"
+            
+    class StoreWord(TACInstr):
+        def __init__(self, dst: Temp, src: Temp, offset: int) -> None:
+            super().__init__(InstrKind.SEQ, [], [dst, src], None)
+            self.offset = offset
+            
+        def __str__(self) -> str:
+            assert -2048 <= self.offset <= 2047
+            return "sw " + Riscv.FMT_OFFSET.format(
+                str(self.srcs[0]), str(self.offset), str(self.srcs[1])
+            )
+            
+    class LoadWord(TACInstr):
+        def __init__(self, dst: Reg, base: Reg, offset: int) -> None:
+            super().__init__(InstrKind.SEQ, [dst], [base], None)
+            self.offset = offset
+
+        def __str__(self) -> str:
+            assert -2048 <= self.offset <= 2047  # Riscv imm [11:0]
+            return "lw " + Riscv.FMT_OFFSET.format(
+                str(self.dsts[0]), str(self.offset), str(self.srcs[0])
             )
 
     class NativeStoreWord(NativeInstr):
@@ -198,3 +257,28 @@ class Riscv:
 
         def __str__(self) -> str:
             return "ret"
+        
+    class LoadArg(TACInstr):
+        def __init__(self, dst: Temp, src: Reg) -> None:
+            super().__init__(InstrKind.SEQ, [dst], [], None)
+            self.src = src
+            
+        def __str__(self) -> str:
+            return "mv " + Riscv.FMT2.format(str(self.dsts[0]), str(self.src))
+        
+    class LoadArgStack(TACInstr):
+        def __init__(self, dst: Temp, offset: int, reg: Reg) -> None:
+            super().__init__(InstrKind.SEQ, [dst], [], None)
+            self.offset = offset
+            self.reg = reg
+            
+        def __str__(self) -> str:
+            return "lw " + Riscv.FMT_OFFSET.format(self.dsts[0], self.reg, self.offset)
+        
+    class Alloc(TACInstr):
+        def __init__(self, dst: Temp, size: int) -> None:
+            super().__init__(InstrKind.SEQ, [dst], [], None)
+            self.size = size
+            
+        def __str__(self) -> str:
+            return ""

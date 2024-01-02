@@ -8,7 +8,7 @@ class ScopeStack:
     def __init__(self, globalscope: Scope) -> None:
         self.globalscope = globalscope
         self.stack = [globalscope]
-        self.loop = False
+        self.loop = 0
         
     def current_scope(self):
         # 当前的作用域
@@ -24,6 +24,11 @@ class ScopeStack:
     def declare(self, symbol: Symbol) -> None:
         current = self.current_scope()
         current.declare(symbol)
+    
+    # To declare a global symbol
+    def declare_global(self, symbol: Symbol) -> None:
+        global_scope = self.stack[0]
+        global_scope.declare(symbol) 
 
     # To check if this is a global scope.
     def isGlobalScope(self) -> bool:
@@ -47,10 +52,10 @@ class ScopeStack:
             print(i.symbols)
             
     def begin_loop(self):
-        self.loop = True
+        self.loop += 1
     
     def end_loop(self):
-        self.loop = False
+        self.loop -= 1
         
     def is_loop(self):
         return self.loop

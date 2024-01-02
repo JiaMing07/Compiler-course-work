@@ -18,7 +18,7 @@ class CFGBuilder:
         self.labelsToBBs = {}
 
     def buildFrom(self, seq: list[TACInstr]):
-        for item in seq:
+        for idx, item in enumerate(seq):
             if item.isLabel():
                 if item.label.isFunc():
                     pass
@@ -38,6 +38,8 @@ class CFGBuilder:
                         kind = None
                     bb = BasicBlock(kind, len(self.bbs), self.currentBBLabel, self.buf)
                     self.save(bb)
+                
+        # print([(bb.label, bb.kind,[loc.instr for loc in bb.locs]) for bb in self.bbs])
 
         if not len(self.buf) == 0:
             raise IllegalArgumentException

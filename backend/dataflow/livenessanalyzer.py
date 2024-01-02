@@ -57,4 +57,5 @@ class LivenessAnalyzer:
                 liveOut.discard(v)
 
             liveOut.update(loc.instr.getRead())
+            # print("change",loc.instr,loc.instr.getRead(), liveOut)
             loc.liveIn = liveOut.copy()

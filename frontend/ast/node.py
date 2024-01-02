@@ -149,6 +149,7 @@ class Node(ABC):
         Recursively stringify itself and its children.
         Override this method when necesssary.
         """
+        # print(self.name)
         if len(self) == 0:
             return self.name
 
