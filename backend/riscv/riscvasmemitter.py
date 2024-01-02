@@ -75,7 +75,6 @@ class RiscvAsmEmitter(AsmEmitter):
             instr.accept(selector)
 
         info = SubroutineInfo(func.entry)
-        # print("info", info)
 
         return (selector.seq, info)
 
@@ -166,7 +165,6 @@ class RiscvAsmEmitter(AsmEmitter):
             self.seq.append(Riscv.Jump(instr.target))
             
         def visitAssign(self, instr: Assign) ->None:
-            # print(Riscv.Move(instr.dst, instr.src))
             self.seq.append(Riscv.Move(instr.dst, instr.src))
             
         def visitParam(self, instr: Param) -> None:
@@ -214,7 +212,6 @@ class RiscvSubroutineEmitter(SubroutineEmitter):
 
     def emitComment(self, comment: str) -> None:
         # you can add some log here to help you debug
-        # print(comment)
         pass
     
     # store some temp to stack
@@ -232,7 +229,6 @@ class RiscvSubroutineEmitter(SubroutineEmitter):
     # usually happen when using a temp which is stored to stack before
     # in step9, you need to think about the fuction parameters here
     def emitLoadFromStack(self, dst: Reg, src: Temp):
-        # print(dst, src, self.offsets)
         if src.index not in self.offsets:
             raise IllegalArgumentException()
         else:

@@ -63,34 +63,25 @@ class BruteRegAlloc(RegAlloc):
         # in step9, you may need to think about how to store callersave regs here
         args_stack = []
         for loc in bb.allSeq():
-            # print(loc.instr,loc.liveIn)
-            # print("loc", loc.instr, loc.instr.dsts)
             if isinstance(loc.instr, Riscv.Param):
-                # print("param")
                 args_stack.append(loc.instr.srcs[0])
             elif isinstance(loc.instr, Riscv.Call):
-                # print("call")
                 ret = loc.instr.dsts[0]
                 # 保存 caller_save 寄存器
                 saved_regs = []
                 sum = 0
-                # print("T1",Riscv.T1.occupied, Riscv.T1.temp.index)
-                # print("T0",Riscv.T0.occupied, Riscv.T0.temp.index)
                 for reg in Riscv.CallerSaved:
                     if reg.occupied and reg.temp.index in loc.liveIn:
-                        # print("reg", reg)
                         subEmitter.emitStoreToStack(reg)
                         saved_regs.append([reg.temp, reg])
                         self.unbind(reg.temp)
                         
                 # 传参
-                # print("T1",Riscv.T0.occupied, Riscv.T0.temp.index)
                 if len(loc.instr.argument_list) > 8:
                     subEmitter.emitNative(Riscv.SPAdd(-4 * (len(loc.instr.argument_list) - 8)))
                 for idx, arg in enumerate(loc.instr.argument_list):
                     reg = self.allocRegFor(arg, True, loc.liveIn, subEmitter)
                     sw = Riscv.NativeStoreWord(reg, Riscv.SP, -4*(idx + 4))
-                    # print(sw.instrString)
                     subEmitter.emitNative(sw)
                     self.unbind(arg)
                         
@@ -126,7 +117,6 @@ class BruteRegAlloc(RegAlloc):
         instr = loc.instr
         srcRegs: list[Reg] = []
         dstRegs: list[Reg] = []
-        # print(loc.instr, loc.liveIn, Riscv.T0.occupied)
 
         for i in range(len(instr.srcs)):
             temp = instr.srcs[i]
@@ -148,7 +138,6 @@ class BruteRegAlloc(RegAlloc):
         self, temp: Temp, isRead: bool, live: set[int], subEmitter: SubroutineEmitter
     ):
         if temp.index in self.bindings:
-            # print(temp.index, self.bindings[temp.index])
             return self.bindings[temp.index]
 
         for reg in self.emitter.allocatableRegs:

@@ -192,9 +192,7 @@ class TACGen(Visitor[TACFuncEmitter, None]):
             for param in astFunc.params:
                 param.accept(self, emitter)
                 temp = param.getattr("symbol").temp
-                # print(param.ident.value, temp)
                 param_list.append(temp)
-            # print(param_list)
             astFunc.body.accept(self, emitter)
             tacFuncs.append(emitter.visitEnd(param_list))
         return TACProg(tacFuncs)
@@ -218,7 +216,6 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         1. Set the 'val' attribute of ident as the temp variable of the 'symbol' attribute of ident.
         """
         sym = ident.getattr('symbol')
-        # print(sym, sym.is)
         if sym.isGlobal:
             address = mv.freshTemp()
             mv.visitLoadSymbol(address, sym)
@@ -233,10 +230,8 @@ class TACGen(Visitor[TACFuncEmitter, None]):
                 ident.setattr('symbol', sym)
                 ident.setattr('val', address)
         else:
-        # print(ident.value,ident.getattr('symbol'))
             temp = ident.getattr('symbol').temp
             ident.setattr('val', temp)
-        # raise NotImplementedError
 
     def visitDeclaration(self, decl: Declaration, mv: TACFuncEmitter) -> None:
         """
@@ -246,7 +241,6 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         """
         symbol = decl.getattr("symbol")
         symbol.temp = mv.freshTemp()
-        # print("decl", symbol, decl.ident.value)
         decl.setattr("symbol", symbol)
         if decl.is_array:
             mv.visitAlloc(symbol.temp, symbol.type.size)
@@ -260,7 +254,6 @@ class TACGen(Visitor[TACFuncEmitter, None]):
                 decl.init_expr.accept(self, mv)
                 mv.visitAssignment(decl.getattr("symbol").temp, decl.init_expr.getattr('val'))
 
-        # raise NotImplementedError
     def visitParameter(self, param: Parameter, mv: TACFuncEmitter) -> None:
         """
         1. Get the 'symbol' attribute of decl.
@@ -284,7 +277,6 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         val = expr.rhs.getattr("val")
         expr.lhs.accept(self, mv)
         lhs_sym = expr.lhs.getattr("symbol")
-        # print(expr.lhs, lhs_sym, type(expr.lhs))
         if lhs_sym.isGlobal:
             address = mv.freshTemp()
             if not lhs_sym.is_array:
@@ -329,7 +321,6 @@ class TACGen(Visitor[TACFuncEmitter, None]):
                 temp = expr.lhs.getattr('symbol').temp
                 mv.visitAssignment(temp, expr.rhs.getattr('val'))
                 expr.setattr('val', expr.rhs.getattr('val'))
-        # raise NotImplementedError
 
     def visitIf(self, stmt: If, mv: TACFuncEmitter) -> None:
         stmt.cond.accept(self, mv)
@@ -377,7 +368,6 @@ class TACGen(Visitor[TACFuncEmitter, None]):
 
         mv.visitLabel(beginLabel)
         stmt.body.accept(self, mv)
-        # mv.visitLabel(loopLabel)
         
         stmt.cond.accept(self, mv)
         mv.visitCondBranch(tacop.CondBranchOp.BEQ, stmt.cond.getattr("val"), breakLabel)
@@ -468,7 +458,6 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         mv.visitAssignment(value, expr.otherwise.getattr("val"))
         mv.visitLabel(exitLabel)
         expr.setattr( "val", value)
-        # raise NotImplementedError
 
     def visitIntLiteral(self, expr: IntLiteral, mv: TACFuncEmitter) -> None:
         expr.setattr("val", mv.visitLoad(expr.value))
@@ -478,7 +467,6 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         for arg in call.argument_list:
             arg.accept(self, mv)
             arg_list.append(arg.getattr("val"))
-            # print(arg.getattr("val"), type(arg.getattr("val")))
         for arg in call.argument_list:
             val = arg.getattr("val")
             mv.visitParam(val)
@@ -488,10 +476,7 @@ class TACGen(Visitor[TACFuncEmitter, None]):
         
     def visitArrayElement(self, array_element: ArrayElement, mv: TACFuncEmitter) -> None:
         symbol = array_element.getattr("symbol")
-        # ident_symbol = array_element.getattr("symbol")
-        # symbol.temp  = ident_symbol.temp
         address = mv.freshTemp()
-        # print(address)
         val = mv.freshTemp()
         if symbol.isGlobal:
             mv.visitLoadSymbol(address, symbol)
@@ -500,12 +485,10 @@ class TACGen(Visitor[TACFuncEmitter, None]):
             
         decaf_type = symbol.type # BuiltIn_type or Array_type
         for idx in array_element.indexes:
-            # print(idx)
             idx.accept(self, mv)
             mv.visitArrayElement(address, idx.getattr("val"), decaf_type.base.size)
             decaf_type = decaf_type.base
         
         mv.visitLoadWord(val, address, 0)
-        # print(val, address)
         array_element.setattr("val", val)
         
