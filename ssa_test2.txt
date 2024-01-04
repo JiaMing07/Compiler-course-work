@@ -1,6 +1,38 @@
 -------------------
 FUNCTION<main>:
 _L4:
+    _T0 = ALLOC 4 # for temp
+    _T1 = 1
+    SAVE _T1, 0(_T0) # for temp
+    _T2 = ALLOC 4 # for val
+    _T3 = 5
+    SAVE _T3, 0(_T2) # for val
+    _T4 = ALLOC 4 # for i
+    _T5 = 2
+    SAVE _T5, 0(_T4) # for i
+_L1:
+    _T6 =  LOAD 0(_T4) # for i
+    _T7 =  LOAD 0(_T2) # for val
+    _T8 = (_T6 <= _T7)
+    if (_T8 == 0) branch _L3
+_L5:
+    _T9 =  LOAD 0(_T0) # for temp
+    _T10 =  LOAD 0(_T4) # for i
+    _T11 = (_T9 * _T10)
+    SAVE _T11, 0(_T0) # for temp
+_L2:
+    _T12 = 1
+    _T13 =  LOAD 0(_T4) # for i
+    _T14 = (_T13 + _T12)
+    SAVE _T14, 0(_T4) # for i
+    branch _L1
+_L3:
+    _T15 =  LOAD 0(_T0) # for temp
+    return _T15
+-------------------
+-------------------
+FUNCTION<main>:
+_L4:
     _T1 = 1
     _T3 = 5
     _T5 = 2
@@ -18,31 +50,3 @@ _L2:
 _L3:
     return _T16
 -------------------
-FUNCTION<main>:
-    _T0 = ALLOC 4 # for temp
-    _T1 = 1
-    SAVE _T1, 0(_T0) # for temp
-    _T2 = ALLOC 4 # for val
-    _T3 = 5
-    SAVE _T3, 0(_T2) # for val
-    _T4 = ALLOC 4 # for i
-    _T5 = 2
-    SAVE _T5, 0(_T4) # for i
-_L1:
-    _T17 =  LOAD 0(_T4) # for i
-    _T3 =  LOAD 0(_T2) # for val
-    _T8 = (_T17 <= _T3)
-    if (_T8 == 0) branch _L3
-    _T16 =  LOAD 0(_T0) # for temp
-    _T17 =  LOAD 0(_T4) # for i
-    _T11 = (_T16 * _T17)
-    SAVE _T11, 0(_T0) # for temp
-_L2:
-    _T12 = 1
-    _T17 =  LOAD 0(_T4) # for i
-    _T14 = (_T17 + _T12)
-    SAVE _T14, 0(_T4) # for i
-    branch _L1
-_L3:
-    _T16 =  LOAD 0(_T0) # for temp
-    return _T16

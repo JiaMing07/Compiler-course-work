@@ -101,7 +101,7 @@ def main():
         print(prog)
     elif args.tac:
         prog = _tac()
-        prog.printTo()
+        # prog.printTo()
     elif args.parse:
         prog = _parse()
         printer = TreePrinter(indentLen=2)
